@@ -9,6 +9,7 @@ $chamadosClientes = [];
 $erro = false;
 
 
+$porPagina = 10; 
 $paginaAtual = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
 if ($paginaAtual < 1) {
     $paginaAtual = 1;
@@ -28,7 +29,7 @@ try {
 
     $offset = ($paginaAtual - 1) * $porPagina;
 
-    
+   
     $stmt = $pdo->prepare("
         SELECT id, solicitante, email, assunto, descricao, status, criado_em
         FROM chamados
@@ -46,6 +47,7 @@ try {
     $erro = true;
 }
 
+// Mostra no máximo 5 números de aba por vez (ex.: 1 2 3 4 5)
 $janela = 5;
 $inicio = max(1, $paginaAtual - 2);
 $fim = min($totalPaginas, $inicio + $janela - 1);
