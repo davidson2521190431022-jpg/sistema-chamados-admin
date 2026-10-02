@@ -4,26 +4,24 @@ use App\Config\Conexao;
 
 require_once '../app/Config/Conexao.php';
 
-$pdo = Conexao::getConexao();
-
 $chamadosClientes = [];
 $erro = false;
-$mensagemErro = '';
 
 $porPagina = 10;
-$paginaAtual = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
-
-if ($paginaAtual < 1) {
-    $paginaAtual = 1;
-}
+$paginaAtual = isset($_GET['pagina'])
+    ? max(1, (int) $_GET['pagina'])
+    : 1;
 
 $totalChamados = 0;
 $totalPaginas = 1;
 
 try {
-    $totalChamados = (int) $pdo->query(
-        "SELECT COUNT(*) FROM chamados"
-    )->fetchColumn();
+    $pdo = Conexao::getConexao();
+
+    // Conta os chamados cadastrados.
+    $totalChamados = (int) $pdo
+        ->query("SELECT COUNT(*) FROM chamados")
+        ->fetchColumn();
 
     $totalPaginas = max(
         1,
@@ -36,17 +34,11 @@ try {
 
     $offset = ($paginaAtual - 1) * $porPagina;
 
+    // Consulta todas as colunas existentes.
     $stmt = $pdo->prepare("
-        SELECT
-            id,
-            solicitante,
-            email,
-            assunto,
-            descricao,
-            status,
-            criado_em
+        SELECT *
         FROM chamados
-        ORDER BY id DESC
+        ORDER BY criado_em DESC
         LIMIT :limite OFFSET :offset
     ");
 
@@ -59,10 +51,9 @@ try {
 } catch (PDOException $e) {
     error_log($e->getMessage());
     $erro = true;
-    $mensagemErro = $e->getMessage();
 }
 
-// Mostra no máximo 5 números de página.
+// Paginação: no máximo 5 números por vez.
 $janela = 5;
 $inicio = max(1, $paginaAtual - 2);
 $fim = min($totalPaginas, $inicio + $janela - 1);
@@ -136,17 +127,33 @@ $inicio = max(1, $fim - $janela + 1);
             padding-bottom: 15px;
         }
 
-        .erro-detalhado {
+        .mensagem-erro {
             color: #b91c1c;
             background: #fef2f2;
             border: 1px solid #fecaca;
             border-radius: 6px;
             padding: 15px;
             margin: 20px;
+        }
+
+        .tabela-historico {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .tabela-historico td,
+        .tabela-historico th {
+            padding: 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .tabela-historico td small {
             overflow-wrap: anywhere;
         }
     </style>
 </head>
+
 <body>
 
     <aside class="sidebar">
@@ -187,11 +194,13 @@ $inicio = max(1, $fim - $janela + 1);
     </aside>
 
     <main class="main-content">
+
         <header class="top-header">
             <h1>Histórico de Atendimentos</h1>
         </header>
 
         <div class="table-container">
+
             <div class="table-header">
                 <h3>
                     Histórico Geral de Solicitações
@@ -201,23 +210,22 @@ $inicio = max(1, $fim - $janela + 1);
 
             <?php if ($erro): ?>
 
-                <div class="erro-detalhado">
-                    <strong>Erro ao consultar os chamados:</strong>
-                    <pre><?= htmlspecialchars(
-                        $mensagemErro,
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ) ?></pre>
+                <div class="mensagem-erro">
+                    <strong>Erro ao consultar os chamados.</strong>
+                    <p>
+                        Verifique a conexão com o banco de dados
+                        ou consulte o log do servidor.
+                    </p>
                 </div>
 
             <?php else: ?>
 
-                <table>
+                <table class="tabela-historico">
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Solicitante</th>
-                            <th>E-mail</th>
+                            <th>CPF</th>
                             <th>Assunto</th>
                             <th>Status</th>
                             <th>Data</th>
@@ -225,13 +233,32 @@ $inicio = max(1, $fim - $janela + 1);
                     </thead>
 
                     <tbody>
+
                         <?php if (!empty($chamadosClientes)): ?>
 
                             <?php foreach ($chamadosClientes as $chamado): ?>
-                                <?php
-                                $status = trim($chamado['status'] ?? '');
-                                $statusStr = mb_strtolower($status);
 
+                                <?php
+                                $id = (int) ($chamado['id'] ?? 0);
+
+                                $solicitante = $chamado['solicitante']
+                                    ?? $chamado['nome']
+                                    ?? '—';
+
+                                $cpf = $chamado['cpf'] ?? '—';
+
+                                $assunto = $chamado['assunto']
+                                    ?? $chamado['titulo']
+                                    ?? $chamado['categoria']
+                                    ?? '—';
+
+                                $descricao = $chamado['descricao'] ?? '';
+
+                                $status = trim(
+                                    (string) ($chamado['status'] ?? '')
+                                );
+
+                                $statusStr = strtolower($status);
                                 $statusClass = 'abertos';
 
                                 if (str_contains($statusStr, 'andamento')) {
@@ -248,14 +275,18 @@ $inicio = max(1, $fim - $janela + 1);
                                 $statusTexto = ucfirst(
                                     str_replace('_', ' ', $status)
                                 );
+
+                                $data = $chamado['criado_em'] ?? null;
                                 ?>
 
                                 <tr>
-                                    <td>#<?= (int) $chamado['id'] ?></td>
+                                    <td>
+                                        #<?= $id ?>
+                                    </td>
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            $chamado['solicitante'] ?? '',
+                                            (string) $solicitante,
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -263,7 +294,7 @@ $inicio = max(1, $fim - $janela + 1);
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            $chamado['email'] ?? '',
+                                            (string) $cpf,
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -272,19 +303,22 @@ $inicio = max(1, $fim - $janela + 1);
                                     <td>
                                         <strong>
                                             <?= htmlspecialchars(
-                                                $chamado['assunto'] ?? '',
+                                                (string) $assunto,
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
                                         </strong>
-                                        <br>
-                                        <small>
-                                            <?= htmlspecialchars(
-                                                $chamado['descricao'] ?? '',
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </small>
+
+                                        <?php if ($descricao !== ''): ?>
+                                            <br>
+                                            <small>
+                                                <?= htmlspecialchars(
+                                                    (string) $descricao,
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </small>
+                                        <?php endif; ?>
                                     </td>
 
                                     <td>
@@ -294,7 +328,9 @@ $inicio = max(1, $fim - $janela + 1);
                                             'UTF-8'
                                         ) ?>">
                                             <?= htmlspecialchars(
-                                                $statusTexto,
+                                                $statusTexto !== ''
+                                                    ? $statusTexto
+                                                    : 'Não informado',
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
@@ -302,12 +338,16 @@ $inicio = max(1, $fim - $janela + 1);
                                     </td>
 
                                     <td>
-                                        <?= !empty($chamado['criado_em'])
-                                            ? date(
-                                                'd/m/Y H:i',
-                                                strtotime($chamado['criado_em'])
-                                            )
-                                            : '—' ?>
+                                        <?php if (!empty($data)): ?>
+                                            <?php
+                                            $timestamp = strtotime($data);
+                                            echo $timestamp !== false
+                                                ? date('d/m/Y H:i', $timestamp)
+                                                : '—';
+                                            ?>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
 
@@ -318,13 +358,15 @@ $inicio = max(1, $fim - $janela + 1);
                             <tr>
                                 <td
                                     colspan="6"
-                                    style="text-align: center; color: #777; padding: 20px;"
+                                    style="text-align:center; color:#777; padding:20px;"
                                 >
-                                    Nenhum chamado de cliente registrado até o momento.
+                                    Nenhum chamado de cliente registrado
+                                    até o momento.
                                 </td>
                             </tr>
 
                         <?php endif; ?>
+
                     </tbody>
                 </table>
 
@@ -337,31 +379,41 @@ $inicio = max(1, $fim - $janela + 1);
                                 &laquo; Anterior
                             </a>
                         <?php else: ?>
-                            <span class="desativada">&laquo; Anterior</span>
+                            <span class="desativada">
+                                &laquo; Anterior
+                            </span>
                         <?php endif; ?>
 
                         <?php if ($inicio > 1): ?>
                             <a href="?pagina=1">1</a>
+
                             <?php if ($inicio > 2): ?>
                                 <span class="desativada">...</span>
                             <?php endif; ?>
                         <?php endif; ?>
 
                         <?php for ($i = $inicio; $i <= $fim; $i++): ?>
+
                             <?php if ($i === $paginaAtual): ?>
                                 <span class="ativa"><?= $i ?></span>
                             <?php else: ?>
-                                <a href="?pagina=<?= $i ?>"><?= $i ?></a>
+                                <a href="?pagina=<?= $i ?>">
+                                    <?= $i ?>
+                                </a>
                             <?php endif; ?>
+
                         <?php endfor; ?>
 
                         <?php if ($fim < $totalPaginas): ?>
+
                             <?php if ($fim < $totalPaginas - 1): ?>
                                 <span class="desativada">...</span>
                             <?php endif; ?>
+
                             <a href="?pagina=<?= $totalPaginas ?>">
                                 <?= $totalPaginas ?>
                             </a>
+
                         <?php endif; ?>
 
                         <?php if ($paginaAtual < $totalPaginas): ?>
@@ -369,19 +421,23 @@ $inicio = max(1, $fim - $janela + 1);
                                 Próxima &raquo;
                             </a>
                         <?php else: ?>
-                            <span class="desativada">Próxima &raquo;</span>
+                            <span class="desativada">
+                                Próxima &raquo;
+                            </span>
                         <?php endif; ?>
 
                     </nav>
 
                     <p class="info-paginacao">
-                        Página <?= $paginaAtual ?> de <?= $totalPaginas ?>
+                        Página <?= $paginaAtual ?>
+                        de <?= $totalPaginas ?>
                         &middot; <?= $porPagina ?> por página
                     </p>
 
                 <?php endif; ?>
 
             <?php endif; ?>
+
         </div>
     </main>
 
