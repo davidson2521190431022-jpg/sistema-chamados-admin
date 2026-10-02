@@ -7,29 +7,57 @@ require_once '../app/Config/Conexao.php';
 $pdo = Conexao::getConexao();
 
 $chamadosClientes = [];
+$nomesPessoas = [];
 $erro = false;
-$mensagemErro = '';
 
+$busca = trim($_GET['busca'] ?? '');
 $porPagina = 10;
 $paginaAtual = max(1, (int) ($_GET['pagina'] ?? 1));
-$busca = trim($_GET['busca'] ?? '');
-
 $totalChamados = 0;
 $totalPaginas = 1;
 
 try {
-    // Conta os chamados de acordo com o nome pesquisado.
-    $stmtContagem = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM chamados
-        WHERE solicitante LIKE :busca
-    ");
+    // Identifica as colunas existentes no banco.
+    $colunas = $pdo->query("SHOW COLUMNS FROM chamados")
+                   ->fetchAll(PDO::FETCH_COLUMN);
 
-    $stmtContagem->execute([
-        ':busca' => '%' . $busca . '%'
-    ]);
+    $tem = static fn($coluna) => in_array($coluna, $colunas, true);
 
-    $totalChamados = (int) $stmtContagem->fetchColumn();
+    // Campos utilizados na pesquisa.
+    $camposPesquisa = [];
+    foreach (['nome', 'solicitante'] as $campo) {
+        if ($tem($campo)) {
+            $camposPesquisa[] = $campo;
+        }
+    }
+
+    // Monta a pesquisa sem alterar os dados.
+    $condicoes = [];
+    $parametros = [];
+
+    if ($busca !== '' && count($camposPesquisa) > 0) {
+        foreach ($camposPesquisa as $i => $campo) {
+            $param = ':busca' . $i;
+            $condicoes[] = "`$campo` LIKE $param";
+            $parametros[$param] = '%' . $busca . '%';
+        }
+    }
+
+    $where = count($condicoes) > 0
+        ? ' WHERE (' . implode(' OR ', $condicoes) . ')'
+        : '';
+
+    // Total de chamados encontrados.
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM chamados" . $where
+    );
+
+    foreach ($parametros as $param => $valor) {
+        $stmt->bindValue($param, $valor, PDO::PARAM_STR);
+    }
+
+    $stmt->execute();
+    $totalChamados = (int) $stmt->fetchColumn();
 
     $totalPaginas = max(
         1,
@@ -42,50 +70,53 @@ try {
 
     $offset = ($paginaAtual - 1) * $porPagina;
 
-    // Consulta os chamados com o filtro de nome.
-    $stmt = $pdo->prepare("
-        SELECT *
-        FROM chamados
-        WHERE solicitante LIKE :busca
-        ORDER BY id DESC
-        LIMIT :limite OFFSET :offset
-    ");
-
-    $stmt->bindValue(
-        ':busca',
-        '%' . $busca . '%',
-        PDO::PARAM_STR
+    // Busca os chamados da página atual.
+    $stmt = $pdo->prepare(
+        "SELECT * FROM chamados" . $where .
+        " ORDER BY id DESC LIMIT :limite OFFSET :offset"
     );
+
+    foreach ($parametros as $param => $valor) {
+        $stmt->bindValue($param, $valor, PDO::PARAM_STR);
+    }
+
     $stmt->bindValue(':limite', $porPagina, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
     $chamadosClientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Lista os nomes cadastrados para as sugestões.
-    $stmtNomes = $pdo->query("
-        SELECT DISTINCT solicitante
-        FROM chamados
-        WHERE solicitante IS NOT NULL
-          AND solicitante <> ''
-        ORDER BY solicitante
-    ");
+    // Lista os nomes para as sugestões da pesquisa.
+    $consultasNomes = [];
 
-    $nomes = $stmtNomes->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($camposPesquisa as $campo) {
+        $consultasNomes[] =
+            "SELECT DISTINCT `$campo` AS pessoa
+             FROM chamados
+             WHERE `$campo` IS NOT NULL
+               AND TRIM(`$campo`) <> ''";
+    }
+
+    if (count($consultasNomes) > 0) {
+        $sqlNomes = implode(' UNION ', $consultasNomes)
+                  . ' ORDER BY pessoa';
+
+        $nomesPessoas = $pdo->query($sqlNomes)
+                            ->fetchAll(PDO::FETCH_COLUMN);
+    }
 
 } catch (PDOException $e) {
-    error_log($e->getMessage());
+    error_log('Erro no histórico: ' . $e->getMessage());
     $erro = true;
-    $mensagemErro = 'Não foi possível consultar os atendimentos.';
 }
 
-// Exibe no máximo cinco números de página.
+// Paginação com até cinco números.
 $janela = 5;
 $inicio = max(1, $paginaAtual - 2);
 $fim = min($totalPaginas, $inicio + $janela - 1);
 $inicio = max(1, $fim - $janela + 1);
 
-// Mantém o termo de pesquisa nos links.
+// Preserva a pesquisa nos links da paginação.
 function linkPagina(int $pagina, string $busca): string
 {
     return '?' . http_build_query([
@@ -162,64 +193,58 @@ function linkPagina(int $pagina, string $busca): string
             padding-bottom: 15px;
         }
 
-        .erro-detalhado {
-            color: #b91c1c;
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px;
-            overflow-wrap: anywhere;
-        }
-
-        .pesquisa {
+        .pesquisa-historico {
             display: flex;
+            gap: 8px;
             align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
             padding: 15px 20px;
         }
 
-        .pesquisa input {
+        .pesquisa-historico input {
             flex: 1;
-            min-width: 200px;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 14px;
-            outline: none;
-        }
-
-        .pesquisa input:focus {
-            border-color: #1a73e8;
-            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
-        }
-
-        .pesquisa button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            background: #1a73e8;
-            color: #fff;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .pesquisa button:hover {
-            background: #1557b0;
-        }
-
-        .limpar-pesquisa {
+            min-width: 0;
             padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font: inherit;
+        }
+
+        .pesquisa-historico button {
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 7px;
+            background: #1a73e8;
+            color: white;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 600;
+        }
+
+        .pesquisa-historico button:hover {
+            background: #155fc0;
+        }
+
+        .pesquisa-historico .limpar {
+            padding: 10px 12px;
             color: #1a73e8;
             text-decoration: none;
-            font-size: 14px;
+            white-space: nowrap;
         }
 
-        .limpar-pesquisa:hover {
-            text-decoration: underline;
+        .mensagem-vazia {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .pesquisa-historico {
+                flex-wrap: wrap;
+            }
+
+            .pesquisa-historico input {
+                flex-basis: 100%;
+            }
         }
     </style>
 </head>
@@ -275,59 +300,53 @@ function linkPagina(int $pagina, string $busca): string
                 </h3>
             </div>
 
-            <!-- Pesquisa de pessoas -->
-            <form method="GET" action="clientes.php" class="pesquisa">
-                <input
-                    type="search"
-                    name="busca"
-                    list="sugestoes-nomes"
-                    value="<?= htmlspecialchars(
-                        $busca,
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ) ?>"
-                    placeholder="Digite o nome da pessoa..."
-                    autocomplete="off"
-                    aria-label="Pesquisar pelo nome da pessoa"
-                >
-
-                <datalist id="sugestoes-nomes">
-                    <?php foreach (($nomes ?? []) as $nome): ?>
-                        <option value="<?= htmlspecialchars(
-                            $nome,
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>">
-                    <?php endforeach; ?>
-                </datalist>
-
-                <button type="submit">
-                    <span class="material-symbols-rounded"
-                          style="font-size: 18px; vertical-align: middle;">
-                        search
-                    </span>
-                    Pesquisar
-                </button>
-
-                <?php if ($busca !== ''): ?>
-                    <a href="clientes.php" class="limpar-pesquisa">
-                        Limpar
-                    </a>
-                <?php endif; ?>
-            </form>
-
             <?php if ($erro): ?>
 
-                <div class="erro-detalhado">
-                    <strong>Erro ao consultar os atendimentos:</strong>
-                    <p><?= htmlspecialchars(
-                        $mensagemErro,
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ) ?></p>
+                <div class="mensagem-vazia">
+                    Ocorreu um erro ao consultar os chamados.
+                    Verifique os registros de erro do sistema.
                 </div>
 
             <?php else: ?>
+
+                <form method="GET" action="clientes.php"
+                      class="pesquisa-historico">
+
+                    <input
+                        type="search"
+                        name="busca"
+                        list="lista-pessoas"
+                        placeholder="Digite o nome da pessoa..."
+                        value="<?= htmlspecialchars(
+                            $busca,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
+                        autocomplete="off"
+                    >
+
+                    <datalist id="lista-pessoas">
+                        <?php foreach ($nomesPessoas as $nome): ?>
+                            <option value="<?= htmlspecialchars(
+                                $nome,
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>">
+                        <?php endforeach; ?>
+                    </datalist>
+
+                    <button type="submit">
+                        <span class="material-symbols-rounded"
+                              style="font-size:16px; vertical-align:middle;">
+                            search
+                        </span>
+                        Pesquisar
+                    </button>
+
+                    <?php if ($busca !== ''): ?>
+                        <a class="limpar" href="clientes.php">Limpar</a>
+                    <?php endif; ?>
+                </form>
 
                 <table>
                     <thead>
@@ -346,9 +365,25 @@ function linkPagina(int $pagina, string $busca): string
 
                             <?php foreach ($chamadosClientes as $chamado): ?>
                                 <?php
-                                $status = trim($chamado['status'] ?? '');
-                                $statusStr = mb_strtolower($status);
+                                $solicitante = trim(
+                                    $chamado['solicitante'] ?? ''
+                                );
 
+                                if ($solicitante === '') {
+                                    $solicitante = trim(
+                                        $chamado['nome'] ?? ''
+                                    );
+                                }
+
+                                $email = $chamado['email'] ?? '';
+
+                                $assunto = $chamado['assunto']
+                                    ?? $chamado['titulo']
+                                    ?? $chamado['categoria']
+                                    ?? '—';
+
+                                $status = trim($chamado['status'] ?? '');
+                                $statusStr = strtolower($status);
                                 $statusClass = 'abertos';
 
                                 if (str_contains($statusStr, 'andamento')) {
@@ -366,7 +401,19 @@ function linkPagina(int $pagina, string $busca): string
                                     str_replace('_', ' ', $status)
                                 );
 
-                                $data = $chamado['criado_em'] ?? '';
+                                $data = '—';
+                                if (!empty($chamado['criado_em'])) {
+                                    $timestamp = strtotime(
+                                        $chamado['criado_em']
+                                    );
+
+                                    if ($timestamp !== false) {
+                                        $data = date(
+                                            'd/m/Y H:i',
+                                            $timestamp
+                                        );
+                                    }
+                                }
                                 ?>
 
                                 <tr>
@@ -376,7 +423,7 @@ function linkPagina(int $pagina, string $busca): string
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            $chamado['solicitante'] ?? '',
+                                            $solicitante,
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -384,7 +431,7 @@ function linkPagina(int $pagina, string $busca): string
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            $chamado['email'] ?? '—',
+                                            $email,
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -393,21 +440,21 @@ function linkPagina(int $pagina, string $busca): string
                                     <td>
                                         <strong>
                                             <?= htmlspecialchars(
-                                                $chamado['assunto']
-                                                ?? $chamado['titulo']
-                                                ?? '—',
+                                                $assunto,
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
                                         </strong>
-                                        <br>
-                                        <small>
-                                            <?= htmlspecialchars(
-                                                $chamado['descricao'] ?? '',
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </small>
+                                        <?php if (!empty($chamado['descricao'])): ?>
+                                            <br>
+                                            <small>
+                                                <?= htmlspecialchars(
+                                                    $chamado['descricao'],
+                                                    ENT_QUOTES,
+                                                    'UTF-8'
+                                                ) ?>
+                                            </small>
+                                        <?php endif; ?>
                                     </td>
 
                                     <td>
@@ -424,20 +471,11 @@ function linkPagina(int $pagina, string $busca): string
                                         </span>
                                     </td>
 
-                                    <td>
-                                        <?php if ($data !== ''): ?>
-                                            <?= htmlspecialchars(
-                                                date(
-                                                    'd/m/Y H:i',
-                                                    strtotime($data)
-                                                ),
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        <?php else: ?>
-                                            —
-                                        <?php endif; ?>
-                                    </td>
+                                    <td><?= htmlspecialchars(
+                                        $data,
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?></td>
                                 </tr>
 
                             <?php endforeach; ?>
@@ -445,10 +483,7 @@ function linkPagina(int $pagina, string $busca): string
                         <?php else: ?>
 
                             <tr>
-                                <td
-                                    colspan="6"
-                                    style="text-align: center; color: #777; padding: 20px;"
-                                >
+                                <td colspan="6" class="mensagem-vazia">
                                     <?php if ($busca !== ''): ?>
                                         Nenhum atendimento encontrado para
                                         "<?= htmlspecialchars(
@@ -468,7 +503,6 @@ function linkPagina(int $pagina, string $busca): string
                 </table>
 
                 <?php if ($totalPaginas > 1): ?>
-
                     <nav class="paginacao" aria-label="Paginação">
 
                         <?php if ($paginaAtual > 1): ?>
@@ -480,9 +514,7 @@ function linkPagina(int $pagina, string $busca): string
                                 &laquo; Anterior
                             </a>
                         <?php else: ?>
-                            <span class="desativada">
-                                &laquo; Anterior
-                            </span>
+                            <span class="desativada">&laquo; Anterior</span>
                         <?php endif; ?>
 
                         <?php if ($inicio > 1): ?>
@@ -505,9 +537,7 @@ function linkPagina(int $pagina, string $busca): string
                                     linkPagina($i, $busca),
                                     ENT_QUOTES,
                                     'UTF-8'
-                                ) ?>">
-                                    <?= $i ?>
-                                </a>
+                                ) ?>"><?= $i ?></a>
                             <?php endif; ?>
                         <?php endfor; ?>
 
@@ -520,9 +550,7 @@ function linkPagina(int $pagina, string $busca): string
                                 linkPagina($totalPaginas, $busca),
                                 ENT_QUOTES,
                                 'UTF-8'
-                            ) ?>">
-                                <?= $totalPaginas ?>
-                            </a>
+                            ) ?>"><?= $totalPaginas ?></a>
                         <?php endif; ?>
 
                         <?php if ($paginaAtual < $totalPaginas): ?>
@@ -534,9 +562,7 @@ function linkPagina(int $pagina, string $busca): string
                                 Próxima &raquo;
                             </a>
                         <?php else: ?>
-                            <span class="desativada">
-                                Próxima &raquo;
-                            </span>
+                            <span class="desativada">Próxima &raquo;</span>
                         <?php endif; ?>
 
                     </nav>
@@ -545,7 +571,6 @@ function linkPagina(int $pagina, string $busca): string
                         Página <?= $paginaAtual ?> de <?= $totalPaginas ?>
                         &middot; <?= $porPagina ?> por página
                     </p>
-
                 <?php endif; ?>
 
             <?php endif; ?>
