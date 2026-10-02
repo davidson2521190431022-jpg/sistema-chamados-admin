@@ -4,24 +4,32 @@ use App\Config\Conexao;
 
 require_once '../app/Config/Conexao.php';
 
+$pdo = Conexao::getConexao();
+
 $chamadosClientes = [];
 $erro = false;
+$mensagemErro = '';
 
 $porPagina = 10;
-$paginaAtual = isset($_GET['pagina'])
-    ? max(1, (int) $_GET['pagina'])
-    : 1;
+$paginaAtual = max(1, (int) ($_GET['pagina'] ?? 1));
+$busca = trim($_GET['busca'] ?? '');
 
 $totalChamados = 0;
 $totalPaginas = 1;
 
 try {
-    $pdo = Conexao::getConexao();
+    // Conta os chamados de acordo com o nome pesquisado.
+    $stmtContagem = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM chamados
+        WHERE solicitante LIKE :busca
+    ");
 
-    // Conta os chamados cadastrados.
-    $totalChamados = (int) $pdo
-        ->query("SELECT COUNT(*) FROM chamados")
-        ->fetchColumn();
+    $stmtContagem->execute([
+        ':busca' => '%' . $busca . '%'
+    ]);
+
+    $totalChamados = (int) $stmtContagem->fetchColumn();
 
     $totalPaginas = max(
         1,
@@ -34,30 +42,57 @@ try {
 
     $offset = ($paginaAtual - 1) * $porPagina;
 
-    // Consulta todas as colunas existentes.
+    // Consulta os chamados com o filtro de nome.
     $stmt = $pdo->prepare("
         SELECT *
         FROM chamados
-        ORDER BY criado_em DESC
+        WHERE solicitante LIKE :busca
+        ORDER BY id DESC
         LIMIT :limite OFFSET :offset
     ");
 
+    $stmt->bindValue(
+        ':busca',
+        '%' . $busca . '%',
+        PDO::PARAM_STR
+    );
     $stmt->bindValue(':limite', $porPagina, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
     $chamadosClientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Lista os nomes cadastrados para as sugestões.
+    $stmtNomes = $pdo->query("
+        SELECT DISTINCT solicitante
+        FROM chamados
+        WHERE solicitante IS NOT NULL
+          AND solicitante <> ''
+        ORDER BY solicitante
+    ");
+
+    $nomes = $stmtNomes->fetchAll(PDO::FETCH_COLUMN);
+
 } catch (PDOException $e) {
     error_log($e->getMessage());
     $erro = true;
+    $mensagemErro = 'Não foi possível consultar os atendimentos.';
 }
 
-// Paginação: no máximo 5 números por vez.
+// Exibe no máximo cinco números de página.
 $janela = 5;
 $inicio = max(1, $paginaAtual - 2);
 $fim = min($totalPaginas, $inicio + $janela - 1);
 $inicio = max(1, $fim - $janela + 1);
+
+// Mantém o termo de pesquisa nos links.
+function linkPagina(int $pagina, string $busca): string
+{
+    return '?' . http_build_query([
+        'pagina' => $pagina,
+        'busca' => $busca
+    ]);
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -127,33 +162,67 @@ $inicio = max(1, $fim - $janela + 1);
             padding-bottom: 15px;
         }
 
-        .mensagem-erro {
+        .erro-detalhado {
             color: #b91c1c;
             background: #fef2f2;
             border: 1px solid #fecaca;
             border-radius: 6px;
             padding: 15px;
             margin: 20px;
-        }
-
-        .tabela-historico {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .tabela-historico td,
-        .tabela-historico th {
-            padding: 12px;
-            text-align: left;
-            vertical-align: middle;
-        }
-
-        .tabela-historico td small {
             overflow-wrap: anywhere;
+        }
+
+        .pesquisa {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 15px 20px;
+        }
+
+        .pesquisa input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .pesquisa input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+        }
+
+        .pesquisa button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #1a73e8;
+            color: #fff;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .pesquisa button:hover {
+            background: #1557b0;
+        }
+
+        .limpar-pesquisa {
+            padding: 10px;
+            color: #1a73e8;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .limpar-pesquisa:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
-
 <body>
 
     <aside class="sidebar">
@@ -194,13 +263,11 @@ $inicio = max(1, $fim - $janela + 1);
     </aside>
 
     <main class="main-content">
-
         <header class="top-header">
             <h1>Histórico de Atendimentos</h1>
         </header>
 
         <div class="table-container">
-
             <div class="table-header">
                 <h3>
                     Histórico Geral de Solicitações
@@ -208,24 +275,66 @@ $inicio = max(1, $fim - $janela + 1);
                 </h3>
             </div>
 
+            <!-- Pesquisa de pessoas -->
+            <form method="GET" action="clientes.php" class="pesquisa">
+                <input
+                    type="search"
+                    name="busca"
+                    list="sugestoes-nomes"
+                    value="<?= htmlspecialchars(
+                        $busca,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                    placeholder="Digite o nome da pessoa..."
+                    autocomplete="off"
+                    aria-label="Pesquisar pelo nome da pessoa"
+                >
+
+                <datalist id="sugestoes-nomes">
+                    <?php foreach (($nomes ?? []) as $nome): ?>
+                        <option value="<?= htmlspecialchars(
+                            $nome,
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>">
+                    <?php endforeach; ?>
+                </datalist>
+
+                <button type="submit">
+                    <span class="material-symbols-rounded"
+                          style="font-size: 18px; vertical-align: middle;">
+                        search
+                    </span>
+                    Pesquisar
+                </button>
+
+                <?php if ($busca !== ''): ?>
+                    <a href="clientes.php" class="limpar-pesquisa">
+                        Limpar
+                    </a>
+                <?php endif; ?>
+            </form>
+
             <?php if ($erro): ?>
 
-                <div class="mensagem-erro">
-                    <strong>Erro ao consultar os chamados.</strong>
-                    <p>
-                        Verifique a conexão com o banco de dados
-                        ou consulte o log do servidor.
-                    </p>
+                <div class="erro-detalhado">
+                    <strong>Erro ao consultar os atendimentos:</strong>
+                    <p><?= htmlspecialchars(
+                        $mensagemErro,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?></p>
                 </div>
 
             <?php else: ?>
 
-                <table class="tabela-historico">
+                <table>
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Solicitante</th>
-                            <th>CPF</th>
+                            <th>E-mail</th>
                             <th>Assunto</th>
                             <th>Status</th>
                             <th>Data</th>
@@ -233,32 +342,13 @@ $inicio = max(1, $fim - $janela + 1);
                     </thead>
 
                     <tbody>
-
                         <?php if (!empty($chamadosClientes)): ?>
 
                             <?php foreach ($chamadosClientes as $chamado): ?>
-
                                 <?php
-                                $id = (int) ($chamado['id'] ?? 0);
+                                $status = trim($chamado['status'] ?? '');
+                                $statusStr = mb_strtolower($status);
 
-                                $solicitante = $chamado['solicitante']
-                                    ?? $chamado['nome']
-                                    ?? '—';
-
-                                $cpf = $chamado['cpf'] ?? '—';
-
-                                $assunto = $chamado['assunto']
-                                    ?? $chamado['titulo']
-                                    ?? $chamado['categoria']
-                                    ?? '—';
-
-                                $descricao = $chamado['descricao'] ?? '';
-
-                                $status = trim(
-                                    (string) ($chamado['status'] ?? '')
-                                );
-
-                                $statusStr = strtolower($status);
                                 $statusClass = 'abertos';
 
                                 if (str_contains($statusStr, 'andamento')) {
@@ -276,17 +366,17 @@ $inicio = max(1, $fim - $janela + 1);
                                     str_replace('_', ' ', $status)
                                 );
 
-                                $data = $chamado['criado_em'] ?? null;
+                                $data = $chamado['criado_em'] ?? '';
                                 ?>
 
                                 <tr>
                                     <td>
-                                        #<?= $id ?>
+                                        #<?= (int) ($chamado['id'] ?? 0) ?>
                                     </td>
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            (string) $solicitante,
+                                            $chamado['solicitante'] ?? '',
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -294,7 +384,7 @@ $inicio = max(1, $fim - $janela + 1);
 
                                     <td>
                                         <?= htmlspecialchars(
-                                            (string) $cpf,
+                                            $chamado['email'] ?? '—',
                                             ENT_QUOTES,
                                             'UTF-8'
                                         ) ?>
@@ -303,22 +393,21 @@ $inicio = max(1, $fim - $janela + 1);
                                     <td>
                                         <strong>
                                             <?= htmlspecialchars(
-                                                (string) $assunto,
+                                                $chamado['assunto']
+                                                ?? $chamado['titulo']
+                                                ?? '—',
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
                                         </strong>
-
-                                        <?php if ($descricao !== ''): ?>
-                                            <br>
-                                            <small>
-                                                <?= htmlspecialchars(
-                                                    (string) $descricao,
-                                                    ENT_QUOTES,
-                                                    'UTF-8'
-                                                ) ?>
-                                            </small>
-                                        <?php endif; ?>
+                                        <br>
+                                        <small>
+                                            <?= htmlspecialchars(
+                                                $chamado['descricao'] ?? '',
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
+                                        </small>
                                     </td>
 
                                     <td>
@@ -328,9 +417,7 @@ $inicio = max(1, $fim - $janela + 1);
                                             'UTF-8'
                                         ) ?>">
                                             <?= htmlspecialchars(
-                                                $statusTexto !== ''
-                                                    ? $statusTexto
-                                                    : 'Não informado',
+                                                $statusTexto,
                                                 ENT_QUOTES,
                                                 'UTF-8'
                                             ) ?>
@@ -338,13 +425,15 @@ $inicio = max(1, $fim - $janela + 1);
                                     </td>
 
                                     <td>
-                                        <?php if (!empty($data)): ?>
-                                            <?php
-                                            $timestamp = strtotime($data);
-                                            echo $timestamp !== false
-                                                ? date('d/m/Y H:i', $timestamp)
-                                                : '—';
-                                            ?>
+                                        <?php if ($data !== ''): ?>
+                                            <?= htmlspecialchars(
+                                                date(
+                                                    'd/m/Y H:i',
+                                                    strtotime($data)
+                                                ),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ) ?>
                                         <?php else: ?>
                                             —
                                         <?php endif; ?>
@@ -358,15 +447,23 @@ $inicio = max(1, $fim - $janela + 1);
                             <tr>
                                 <td
                                     colspan="6"
-                                    style="text-align:center; color:#777; padding:20px;"
+                                    style="text-align: center; color: #777; padding: 20px;"
                                 >
-                                    Nenhum chamado de cliente registrado
-                                    até o momento.
+                                    <?php if ($busca !== ''): ?>
+                                        Nenhum atendimento encontrado para
+                                        "<?= htmlspecialchars(
+                                            $busca,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>".
+                                    <?php else: ?>
+                                        Nenhum chamado de cliente registrado
+                                        até o momento.
+                                    <?php endif; ?>
                                 </td>
                             </tr>
 
                         <?php endif; ?>
-
                     </tbody>
                 </table>
 
@@ -375,7 +472,11 @@ $inicio = max(1, $fim - $janela + 1);
                     <nav class="paginacao" aria-label="Paginação">
 
                         <?php if ($paginaAtual > 1): ?>
-                            <a href="?pagina=<?= $paginaAtual - 1 ?>">
+                            <a href="<?= htmlspecialchars(
+                                linkPagina($paginaAtual - 1, $busca),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>">
                                 &laquo; Anterior
                             </a>
                         <?php else: ?>
@@ -385,7 +486,11 @@ $inicio = max(1, $fim - $janela + 1);
                         <?php endif; ?>
 
                         <?php if ($inicio > 1): ?>
-                            <a href="?pagina=1">1</a>
+                            <a href="<?= htmlspecialchars(
+                                linkPagina(1, $busca),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>">1</a>
 
                             <?php if ($inicio > 2): ?>
                                 <span class="desativada">...</span>
@@ -393,31 +498,39 @@ $inicio = max(1, $fim - $janela + 1);
                         <?php endif; ?>
 
                         <?php for ($i = $inicio; $i <= $fim; $i++): ?>
-
                             <?php if ($i === $paginaAtual): ?>
                                 <span class="ativa"><?= $i ?></span>
                             <?php else: ?>
-                                <a href="?pagina=<?= $i ?>">
+                                <a href="<?= htmlspecialchars(
+                                    linkPagina($i, $busca),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>">
                                     <?= $i ?>
                                 </a>
                             <?php endif; ?>
-
                         <?php endfor; ?>
 
                         <?php if ($fim < $totalPaginas): ?>
-
                             <?php if ($fim < $totalPaginas - 1): ?>
                                 <span class="desativada">...</span>
                             <?php endif; ?>
 
-                            <a href="?pagina=<?= $totalPaginas ?>">
+                            <a href="<?= htmlspecialchars(
+                                linkPagina($totalPaginas, $busca),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>">
                                 <?= $totalPaginas ?>
                             </a>
-
                         <?php endif; ?>
 
                         <?php if ($paginaAtual < $totalPaginas): ?>
-                            <a href="?pagina=<?= $paginaAtual + 1 ?>">
+                            <a href="<?= htmlspecialchars(
+                                linkPagina($paginaAtual + 1, $busca),
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>">
                                 Próxima &raquo;
                             </a>
                         <?php else: ?>
@@ -429,15 +542,13 @@ $inicio = max(1, $fim - $janela + 1);
                     </nav>
 
                     <p class="info-paginacao">
-                        Página <?= $paginaAtual ?>
-                        de <?= $totalPaginas ?>
+                        Página <?= $paginaAtual ?> de <?= $totalPaginas ?>
                         &middot; <?= $porPagina ?> por página
                     </p>
 
                 <?php endif; ?>
 
             <?php endif; ?>
-
         </div>
     </main>
 
