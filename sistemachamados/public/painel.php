@@ -130,7 +130,7 @@ try {
                 person
             </span>
 
-            Clientes
+             Historico de atendimentos
 
         </a>
 
