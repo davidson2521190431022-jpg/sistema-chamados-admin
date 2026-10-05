@@ -1,12 +1,9 @@
 <?php
-
-use App\Config\Conexao;
-
 ob_start();
 
 require_once '../app/Config/Conexao.php';
 
-$pdo = Conexao::getConexao();
+$pdo = \App\Config\Conexao::getConexao();
 
 
 // ========================================
@@ -60,12 +57,11 @@ if (
         $stmt->execute([$chamadoId]);
     }
 
-
-    // Limpa qualquer saída antes do redirecionamento
-    ob_clean();
-
-    header("Location: chamados.php");
-    exit;
+    /*
+     * NÃO usamos header() aqui.
+     * Depois da atualização, a página continua
+     * normalmente e mostra os dados atualizados.
+     */
 }
 
 
@@ -100,6 +96,8 @@ try {
 } catch (Exception $e) {
 
     $chamados = [];
+
+    $erroBanco = $e->getMessage();
 }
 
 ?>
@@ -123,23 +121,17 @@ try {
     </title>
 
 
-    <!-- Fonte Inter -->
-
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet"
     >
 
 
-    <!-- Material Symbols -->
-
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
         rel="stylesheet"
     >
 
-
-    <!-- CSS -->
 
     <link
         rel="stylesheet"
@@ -243,13 +235,11 @@ try {
 
 
 <!-- ========================================
-     CONTEÚDO PRINCIPAL
+     CONTEÚDO
      ======================================== -->
 
 <main class="main-content">
 
-
-    <!-- CABEÇALHO -->
 
     <header class="top-header">
 
@@ -259,8 +249,6 @@ try {
 
     </header>
 
-
-    <!-- TABELA -->
 
     <div class="table-container">
 
@@ -276,8 +264,6 @@ try {
 
         <table>
 
-
-            <!-- CABEÇALHO DA TABELA -->
 
             <thead>
 
@@ -304,8 +290,6 @@ try {
             </thead>
 
 
-            <!-- CORPO DA TABELA -->
-
             <tbody>
 
 
@@ -325,26 +309,22 @@ try {
                                 #
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $chamado['id']
                                 );
-
                                 ?>
 
                             </td>
 
 
-                            <!-- SOLICITANTE -->
+                            <!-- NOME -->
 
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $chamado['nome'] ?? 'Não informado'
                                 );
-
                                 ?>
 
                             </td>
@@ -355,11 +335,9 @@ try {
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $chamado['matricula'] ?? 'Não informado'
                                 );
-
                                 ?>
 
                             </td>
@@ -370,11 +348,9 @@ try {
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $chamado['setor'] ?? 'Não informado'
                                 );
-
                                 ?>
 
                             </td>
@@ -385,11 +361,9 @@ try {
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $chamado['categoria'] ?? 'Não informado'
                                 );
-
                                 ?>
 
                             </td>
@@ -398,7 +372,6 @@ try {
                             <!-- STATUS -->
 
                             <td>
-
 
                                 <?php
 
@@ -418,10 +391,7 @@ try {
 
                                     $statusClass = 'andamento';
 
-                                }
-
-
-                                elseif (
+                                } elseif (
                                     strpos(
                                         $statusStr,
                                         'aguardando'
@@ -430,10 +400,7 @@ try {
 
                                     $statusClass = 'aguardando';
 
-                                }
-
-
-                                elseif (
+                                } elseif (
                                     strpos(
                                         $statusStr,
                                         'resolvido'
@@ -442,10 +409,7 @@ try {
 
                                     $statusClass = 'resolvido';
 
-                                }
-
-
-                                elseif (
+                                } elseif (
                                     strpos(
                                         $statusStr,
                                         'fechado'
@@ -453,7 +417,6 @@ try {
                                 ) {
 
                                     $statusClass = 'resolvido';
-
                                 }
 
                                 ?>
@@ -464,20 +427,15 @@ try {
                                 >
 
                                     <?php
-
-                                    echo htmlspecialchars(
-                                        $status
-                                    );
-
+                                    echo htmlspecialchars($status);
                                     ?>
 
                                 </span>
 
-
                             </td>
 
 
-                            <!-- DATA DO CHAMADO -->
+                            <!-- DATA -->
 
                             <td>
 
@@ -511,22 +469,17 @@ try {
 
                             <td>
 
-
                                 <div class="action-buttons">
 
 
-                                    <!-- =================================
-                                         BOTÃO ACEITAR
-                                         ================================= -->
+                                    <!-- ACEITAR -->
 
                                     <?php if ($status === 'Aberto'): ?>
-
 
                                         <form
                                             method="POST"
                                             style="display:inline;"
                                         >
-
 
                                             <input
                                                 type="hidden"
@@ -538,20 +491,17 @@ try {
                                                 ?>"
                                             >
 
-
                                             <input
                                                 type="hidden"
                                                 name="acao"
                                                 value="aceitar"
                                             >
 
-
                                             <button
                                                 type="submit"
                                                 class="btn-action-sm btn-accept"
                                                 title="Aceitar chamado"
                                             >
-
 
                                                 <span
                                                     class="material-symbols-rounded"
@@ -560,34 +510,26 @@ try {
                                                     play_arrow
                                                 </span>
 
-
                                                 Aceitar
-
 
                                             </button>
 
-
                                         </form>
-
 
                                     <?php endif; ?>
 
 
-                                    <!-- =================================
-                                         BOTÃO RESOLVER
-                                         ================================= -->
+                                    <!-- RESOLVER -->
 
                                     <?php if (
                                         $status !== 'Resolvido' &&
                                         $status !== 'Fechado'
                                     ): ?>
 
-
                                         <form
                                             method="POST"
                                             style="display:inline;"
                                         >
-
 
                                             <input
                                                 type="hidden"
@@ -599,20 +541,17 @@ try {
                                                 ?>"
                                             >
 
-
                                             <input
                                                 type="hidden"
                                                 name="acao"
                                                 value="resolver"
                                             >
 
-
                                             <button
                                                 type="submit"
                                                 class="btn-action-sm btn-resolve"
                                                 title="Marcar como Resolvido"
                                             >
-
 
                                                 <span
                                                     class="material-symbols-rounded"
@@ -621,31 +560,23 @@ try {
                                                     check
                                                 </span>
 
-
                                                 Resolver
-
 
                                             </button>
 
-
                                         </form>
-
 
                                     <?php endif; ?>
 
 
-                                    <!-- =================================
-                                         BOTÃO BAIXAR
-                                         ================================= -->
+                                    <!-- BAIXAR -->
 
                                     <?php if ($status !== 'Fechado'): ?>
-
 
                                         <form
                                             method="POST"
                                             style="display:inline;"
                                         >
-
 
                                             <input
                                                 type="hidden"
@@ -657,20 +588,17 @@ try {
                                                 ?>"
                                             >
 
-
                                             <input
                                                 type="hidden"
                                                 name="acao"
                                                 value="encerrar"
                                             >
 
-
                                             <button
                                                 type="submit"
                                                 class="btn-action-sm btn-close"
                                                 title="Baixar / Encerrar"
                                             >
-
 
                                                 <span
                                                     class="material-symbols-rounded"
@@ -679,21 +607,16 @@ try {
                                                     archive
                                                 </span>
 
-
                                                 Baixar
-
 
                                             </button>
 
-
                                         </form>
-
 
                                     <?php endif; ?>
 
 
                                 </div>
-
 
                             </td>
 
@@ -707,10 +630,7 @@ try {
                 <?php else: ?>
 
 
-                    <!-- NENHUM CHAMADO -->
-
                     <tr>
-
 
                         <td
                             colspan="8"
@@ -723,9 +643,7 @@ try {
 
                             Nenhum chamado encontrado.
 
-
                         </td>
-
 
                     </tr>
 
@@ -734,7 +652,6 @@ try {
 
 
             </tbody>
-
 
         </table>
 
@@ -749,9 +666,6 @@ try {
 
 </html>
 
-
 <?php
-
 ob_end_flush();
-
 ?>
