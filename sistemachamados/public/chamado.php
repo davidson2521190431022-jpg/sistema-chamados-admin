@@ -1,22 +1,28 @@
-
 <?php
 
 use App\Config\Conexao;
+
+ob_start();
 
 require_once '../app/Config/Conexao.php';
 
 $pdo = Conexao::getConexao();
 
 
-// ===============================
+// ========================================
 // AÇÕES DOS CHAMADOS
-// ===============================
+// ========================================
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chamado_id'], $_POST['acao'])) {
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_POST['chamado_id'], $_POST['acao'])
+) {
 
     $chamadoId = (int) $_POST['chamado_id'];
     $acao = $_POST['acao'];
 
+
+    // ACEITAR
     if ($acao === 'aceitar') {
 
         $stmt = $pdo->prepare("
@@ -26,8 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chamado_id'], $_POST[
         ");
 
         $stmt->execute([$chamadoId]);
+    }
 
-    } elseif ($acao === 'resolver') {
+
+    // RESOLVER
+    elseif ($acao === 'resolver') {
 
         $stmt = $pdo->prepare("
             UPDATE chamados
@@ -36,8 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chamado_id'], $_POST[
         ");
 
         $stmt->execute([$chamadoId]);
+    }
 
-    } elseif ($acao === 'encerrar') {
+
+    // ENCERRAR / BAIXAR
+    elseif ($acao === 'encerrar') {
 
         $stmt = $pdo->prepare("
             UPDATE chamados
@@ -48,14 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['chamado_id'], $_POST[
         $stmt->execute([$chamadoId]);
     }
 
+
+    // Limpa qualquer saída antes do redirecionamento
+    ob_clean();
+
     header("Location: chamados.php");
     exit;
 }
 
 
-// ===============================
+// ========================================
 // BUSCAR CHAMADOS
-// ===============================
+// ========================================
 
 $chamados = [];
 
@@ -88,6 +104,7 @@ try {
 
 ?>
 
+
 <!DOCTYPE html>
 
 <html lang="pt-BR">
@@ -96,19 +113,33 @@ try {
 
     <meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Gerenciar Chamados - Sistema de Chamados</title>
+    <title>
+        Gerenciar Chamados - Sistema de Chamados
+    </title>
+
+
+    <!-- Fonte Inter -->
 
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet"
     >
 
+
+    <!-- Material Symbols -->
+
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
         rel="stylesheet"
-    />
+    >
+
+
+    <!-- CSS -->
 
     <link
         rel="stylesheet"
@@ -117,14 +148,16 @@ try {
 
 </head>
 
+
 <body>
 
 
-<!-- ===============================
+<!-- ========================================
      MENU LATERAL
-     =============================== -->
+     ======================================== -->
 
 <aside class="sidebar">
+
 
     <div class="sidebar-brand">
 
@@ -148,7 +181,10 @@ try {
     </a>
 
 
-    <a href="chamados.php" class="active">
+    <a
+        href="chamados.php"
+        class="active"
+    >
 
         <span class="material-symbols-rounded">
             confirmation_number
@@ -202,16 +238,18 @@ try {
 
     </a>
 
+
 </aside>
 
 
-
-<!-- ===============================
+<!-- ========================================
      CONTEÚDO PRINCIPAL
-     =============================== -->
+     ======================================== -->
 
 <main class="main-content">
 
+
+    <!-- CABEÇALHO -->
 
     <header class="top-header">
 
@@ -222,6 +260,7 @@ try {
     </header>
 
 
+    <!-- TABELA -->
 
     <div class="table-container">
 
@@ -235,8 +274,10 @@ try {
         </div>
 
 
-
         <table>
+
+
+            <!-- CABEÇALHO DA TABELA -->
 
             <thead>
 
@@ -263,6 +304,7 @@ try {
             </thead>
 
 
+            <!-- CORPO DA TABELA -->
 
             <tbody>
 
@@ -280,17 +322,20 @@ try {
 
                             <td>
 
-                                #<?php
+                                #
+
+                                <?php
+
                                 echo htmlspecialchars(
                                     $chamado['id']
                                 );
+
                                 ?>
 
                             </td>
 
 
-
-                            <!-- NOME -->
+                            <!-- SOLICITANTE -->
 
                             <td>
 
@@ -303,7 +348,6 @@ try {
                                 ?>
 
                             </td>
-
 
 
                             <!-- MATRÍCULA -->
@@ -321,7 +365,6 @@ try {
                             </td>
 
 
-
                             <!-- SETOR -->
 
                             <td>
@@ -337,7 +380,6 @@ try {
                             </td>
 
 
-
                             <!-- CATEGORIA -->
 
                             <td>
@@ -351,7 +393,6 @@ try {
                                 ?>
 
                             </td>
-
 
 
                             <!-- STATUS -->
@@ -377,7 +418,10 @@ try {
 
                                     $statusClass = 'andamento';
 
-                                } elseif (
+                                }
+
+
+                                elseif (
                                     strpos(
                                         $statusStr,
                                         'aguardando'
@@ -386,7 +430,10 @@ try {
 
                                     $statusClass = 'aguardando';
 
-                                } elseif (
+                                }
+
+
+                                elseif (
                                     strpos(
                                         $statusStr,
                                         'resolvido'
@@ -395,7 +442,10 @@ try {
 
                                     $statusClass = 'resolvido';
 
-                                } elseif (
+                                }
+
+
+                                elseif (
                                     strpos(
                                         $statusStr,
                                         'fechado'
@@ -425,7 +475,6 @@ try {
 
 
                             </td>
-
 
 
                             <!-- DATA DO CHAMADO -->
@@ -458,7 +507,6 @@ try {
                             </td>
 
 
-
                             <!-- AÇÕES -->
 
                             <td>
@@ -467,7 +515,9 @@ try {
                                 <div class="action-buttons">
 
 
-                                    <!-- ACEITAR -->
+                                    <!-- =================================
+                                         BOTÃO ACEITAR
+                                         ================================= -->
 
                                     <?php if ($status === 'Aberto'): ?>
 
@@ -477,13 +527,17 @@ try {
                                             style="display:inline;"
                                         >
 
+
                                             <input
                                                 type="hidden"
                                                 name="chamado_id"
                                                 value="<?php
-                                                echo $chamado['id'];
+                                                echo htmlspecialchars(
+                                                    $chamado['id']
+                                                );
                                                 ?>"
                                             >
+
 
                                             <input
                                                 type="hidden"
@@ -498,6 +552,7 @@ try {
                                                 title="Aceitar chamado"
                                             >
 
+
                                                 <span
                                                     class="material-symbols-rounded"
                                                     style="font-size:16px;"
@@ -505,7 +560,9 @@ try {
                                                     play_arrow
                                                 </span>
 
+
                                                 Aceitar
+
 
                                             </button>
 
@@ -516,8 +573,9 @@ try {
                                     <?php endif; ?>
 
 
-
-                                    <!-- RESOLVER -->
+                                    <!-- =================================
+                                         BOTÃO RESOLVER
+                                         ================================= -->
 
                                     <?php if (
                                         $status !== 'Resolvido' &&
@@ -530,13 +588,17 @@ try {
                                             style="display:inline;"
                                         >
 
+
                                             <input
                                                 type="hidden"
                                                 name="chamado_id"
                                                 value="<?php
-                                                echo $chamado['id'];
+                                                echo htmlspecialchars(
+                                                    $chamado['id']
+                                                );
                                                 ?>"
                                             >
+
 
                                             <input
                                                 type="hidden"
@@ -551,6 +613,7 @@ try {
                                                 title="Marcar como Resolvido"
                                             >
 
+
                                                 <span
                                                     class="material-symbols-rounded"
                                                     style="font-size:16px;"
@@ -558,7 +621,9 @@ try {
                                                     check
                                                 </span>
 
+
                                                 Resolver
+
 
                                             </button>
 
@@ -569,48 +634,62 @@ try {
                                     <?php endif; ?>
 
 
+                                    <!-- =================================
+                                         BOTÃO BAIXAR
+                                         ================================= -->
 
-                                    <!-- ENCERRAR -->
+                                    <?php if ($status !== 'Fechado'): ?>
 
-                                    <form
-                                        method="POST"
-                                        style="display:inline;"
-                                    >
 
-                                        <input
-                                            type="hidden"
-                                            name="chamado_id"
-                                            value="<?php
-                                            echo $chamado['id'];
-                                            ?>"
-                                        >
-
-                                        <input
-                                            type="hidden"
-                                            name="acao"
-                                            value="encerrar"
+                                        <form
+                                            method="POST"
+                                            style="display:inline;"
                                         >
 
 
-                                        <button
-                                            type="submit"
-                                            class="btn-action-sm btn-close"
-                                            title="Baixar / Encerrar"
-                                        >
-
-                                            <span
-                                                class="material-symbols-rounded"
-                                                style="font-size:16px;"
+                                            <input
+                                                type="hidden"
+                                                name="chamado_id"
+                                                value="<?php
+                                                echo htmlspecialchars(
+                                                    $chamado['id']
+                                                );
+                                                ?>"
                                             >
-                                                archive
-                                            </span>
-
-                                            Baixar
-
-                                        </button>
 
 
-                                    </form>
+                                            <input
+                                                type="hidden"
+                                                name="acao"
+                                                value="encerrar"
+                                            >
+
+
+                                            <button
+                                                type="submit"
+                                                class="btn-action-sm btn-close"
+                                                title="Baixar / Encerrar"
+                                            >
+
+
+                                                <span
+                                                    class="material-symbols-rounded"
+                                                    style="font-size:16px;"
+                                                >
+                                                    archive
+                                                </span>
+
+
+                                                Baixar
+
+
+                                            </button>
+
+
+                                        </form>
+
+
+                                    <?php endif; ?>
 
 
                                 </div>
@@ -628,7 +707,10 @@ try {
                 <?php else: ?>
 
 
+                    <!-- NENHUM CHAMADO -->
+
                     <tr>
+
 
                         <td
                             colspan="8"
@@ -641,7 +723,9 @@ try {
 
                             Nenhum chamado encontrado.
 
+
                         </td>
+
 
                     </tr>
 
@@ -650,6 +734,7 @@ try {
 
 
             </tbody>
+
 
         </table>
 
@@ -663,3 +748,10 @@ try {
 </body>
 
 </html>
+
+
+<?php
+
+ob_end_flush();
+
+?>
