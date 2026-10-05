@@ -383,10 +383,6 @@ try {
 </body>
 
 </html>
-```
 
-A coluna agora fica como **Data do Chamado** e mostra, por exemplo:
 
-**04/10/2026 16:45**
 
-Se a sua coluna `Data_abertura` estiver preenchida no banco, ela aparecerá automaticamente.
