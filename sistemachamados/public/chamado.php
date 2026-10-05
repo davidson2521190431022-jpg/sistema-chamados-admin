@@ -8,54 +8,46 @@ $pdo = Conexao::getConexao();
 
 /*
 |--------------------------------------------------------------------------
-| AÇÕES DOS CHAMADOS
+| AÇÕES
 |--------------------------------------------------------------------------
 */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+    $id = intval($_POST['id'] ?? 0);
     $acao = $_POST['acao'] ?? '';
 
     if ($id > 0) {
 
-        try {
+        if ($acao === 'aceitar') {
 
-            if ($acao === 'aceitar') {
+            $stmt = $pdo->prepare("
+                UPDATE chamados
+                SET status = 'Em Andamento'
+                WHERE id = ?
+            ");
 
-                $stmt = $pdo->prepare("
-                    UPDATE chamados
-                    SET status = 'Em Andamento'
-                    WHERE id = ?
-                ");
+            $stmt->execute([$id]);
 
-                $stmt->execute([$id]);
+        } elseif ($acao === 'resolver') {
 
-            } elseif ($acao === 'resolver') {
+            $stmt = $pdo->prepare("
+                UPDATE chamados
+                SET status = 'Resolvido'
+                WHERE id = ?
+            ");
 
-                $stmt = $pdo->prepare("
-                    UPDATE chamados
-                    SET status = 'Resolvido'
-                    WHERE id = ?
-                ");
+            $stmt->execute([$id]);
 
-                $stmt->execute([$id]);
+        } elseif ($acao === 'encerrar') {
 
-            } elseif ($acao === 'encerrar') {
+            $stmt = $pdo->prepare("
+                UPDATE chamados
+                SET status = 'Fechado'
+                WHERE id = ?
+            ");
 
-                $stmt = $pdo->prepare("
-                    UPDATE chamados
-                    SET status = 'Fechado'
-                    WHERE id = ?
-                ");
-
-                $stmt->execute([$id]);
-            }
-
-        } catch (Exception $e) {
-
-            error_log("Erro ao atualizar chamado: " . $e->getMessage());
-
+            $stmt->execute([$id]);
         }
     }
 }
@@ -67,35 +59,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 |--------------------------------------------------------------------------
 */
 
-$chamados = [];
+$stmt = $pdo->query("
+    SELECT
+        id,
+        nome,
+        matricula,
+        setor,
+        categoria,
+        descricao,
+        prioridade,
+        status,
+        cpf,
+        criado_em,
+        solicitante,
+        email
+    FROM chamados
+    ORDER BY criado_em DESC
+");
 
-try {
-
-    $stmt = $pdo->query("
-        SELECT
-            id,
-            nome,
-            matricula,
-            setor,
-            categoria,
-            descricao,
-            prioridade,
-            status,
-            cpf,
-            criado_em,
-            solicitante,
-            email
-        FROM chamados
-        ORDER BY criado_em DESC
-    ");
-
-    $chamados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-} catch (Exception $e) {
-
-    error_log("Erro ao buscar chamados: " . $e->getMessage());
-
-}
+$chamados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 
@@ -140,7 +122,6 @@ try {
 
         </div>
 
-
         <a href="painel.php">
 
             <span class="material-symbols-rounded">
@@ -150,7 +131,6 @@ try {
             Painel
 
         </a>
-
 
         <a href="chamados.php" class="active">
 
@@ -162,7 +142,6 @@ try {
 
         </a>
 
-
         <a href="clientes.php">
 
             <span class="material-symbols-rounded">
@@ -172,7 +151,6 @@ try {
             Histórico de atendimentos
 
         </a>
-
 
         <a href="relatorios.php">
 
@@ -184,7 +162,6 @@ try {
 
         </a>
 
-
         <a href="configuracoes.php">
 
             <span class="material-symbols-rounded">
@@ -194,7 +171,6 @@ try {
             Configurações
 
         </a>
-
 
         <a href="logout.php">
 
@@ -280,49 +256,34 @@ try {
 
                                 $status = $chamado['status'] ?? '';
 
-                                $statusStr = strtolower($status);
+                                $statusLower = strtolower($status);
 
                                 $statusClass = 'abertos';
 
-
-                                if (strpos($statusStr, 'andamento') !== false) {
-
+                                if (strpos($statusLower, 'andamento') !== false) {
                                     $statusClass = 'andamento';
-
-                                } elseif (strpos($statusStr, 'aguardando') !== false) {
-
+                                } elseif (strpos($statusLower, 'aguardando') !== false) {
                                     $statusClass = 'aguardando';
-
-                                } elseif (strpos($statusStr, 'resolvido') !== false) {
-
+                                } elseif (strpos($statusLower, 'resolvido') !== false) {
                                     $statusClass = 'resolvido';
-
-                                } elseif (strpos($statusStr, 'fechado') !== false) {
-
+                                } elseif (strpos($statusLower, 'fechado') !== false) {
                                     $statusClass = 'fechado';
-
                                 }
 
 
                                 $prioridade = $chamado['prioridade'] ?? '';
 
-                                $prioridadeStr = strtolower($prioridade);
+                                $prioridadeLower = strtolower($prioridade);
 
                                 $prioridadeClass = 'media';
 
-
-                                if (strpos($prioridadeStr, 'alta') !== false) {
-
+                                if (strpos($prioridadeLower, 'alta') !== false) {
                                     $prioridadeClass = 'alta';
-
-                                } elseif (strpos($prioridadeStr, 'baixa') !== false) {
-
+                                } elseif (strpos($prioridadeLower, 'baixa') !== false) {
                                     $prioridadeClass = 'baixa';
-
                                 }
 
                                 ?>
-
 
                                 <tr>
 
@@ -338,11 +299,8 @@ try {
                                             <?php
 
                                             echo htmlspecialchars(
-
                                                 $chamado['solicitante']
-
                                                 ?: $chamado['nome']
-
                                             );
 
                                             ?>
@@ -355,13 +313,9 @@ try {
                                     <td>
 
                                         <?php
-
                                         echo htmlspecialchars(
-
                                             $chamado['matricula'] ?? ''
-
                                         );
-
                                         ?>
 
                                     </td>
@@ -370,13 +324,9 @@ try {
                                     <td>
 
                                         <?php
-
                                         echo htmlspecialchars(
-
                                             $chamado['setor'] ?? ''
-
                                         );
-
                                         ?>
 
                                     </td>
@@ -385,13 +335,9 @@ try {
                                     <td>
 
                                         <?php
-
                                         echo htmlspecialchars(
-
                                             $chamado['categoria'] ?? ''
-
                                         );
-
                                         ?>
 
                                     </td>
@@ -402,13 +348,9 @@ try {
                                         <span class="badge prioridade <?php echo $prioridadeClass; ?>">
 
                                             <?php
-
                                             echo htmlspecialchars(
-
                                                 $prioridade ?: 'Não informada'
-
                                             );
-
                                             ?>
 
                                         </span>
@@ -421,13 +363,9 @@ try {
                                         <span class="badge <?php echo $statusClass; ?>">
 
                                             <?php
-
                                             echo htmlspecialchars(
-
                                                 $status ?: 'Não informado'
-
                                             );
-
                                             ?>
 
                                         </span>
@@ -442,11 +380,8 @@ try {
                                         if (!empty($chamado['criado_em'])) {
 
                                             echo date(
-
                                                 'd/m/Y H:i',
-
                                                 strtotime($chamado['criado_em'])
-
                                             );
 
                                         } else {
@@ -465,22 +400,16 @@ try {
                                         <div class="action-buttons">
 
 
-                                            <!-- VER DETALHES -->
+                                            <!-- OLHINHO / DETALHES -->
 
                                             <a
-
                                                 href="chamado.php?id=<?php echo $chamado['id']; ?>"
-
                                                 class="btn-action-sm btn-details"
-
                                                 title="Ver detalhes"
-
                                             >
 
                                                 <span class="material-symbols-rounded">
-
                                                     visibility
-
                                                 </span>
 
                                             </a>
@@ -493,39 +422,24 @@ try {
                                                 <form method="POST">
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="id"
-
                                                         value="<?php echo $chamado['id']; ?>"
-
                                                     >
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="acao"
-
                                                         value="aceitar"
-
                                                     >
 
                                                     <button
-
                                                         type="submit"
-
                                                         class="btn-action-sm btn-accept"
-
-                                                        title="Aceitar chamado"
-
                                                     >
 
                                                         <span class="material-symbols-rounded">
-
                                                             check
-
                                                         </span>
 
                                                         Aceitar
@@ -544,39 +458,24 @@ try {
                                                 <form method="POST">
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="id"
-
                                                         value="<?php echo $chamado['id']; ?>"
-
                                                     >
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="acao"
-
                                                         value="resolver"
-
                                                     >
 
                                                     <button
-
                                                         type="submit"
-
                                                         class="btn-action-sm btn-resolve"
-
-                                                        title="Resolver chamado"
-
                                                     >
 
                                                         <span class="material-symbols-rounded">
-
                                                             done_all
-
                                                         </span>
 
                                                         Resolver
@@ -595,39 +494,24 @@ try {
                                                 <form method="POST">
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="id"
-
                                                         value="<?php echo $chamado['id']; ?>"
-
                                                     >
 
                                                     <input
-
                                                         type="hidden"
-
                                                         name="acao"
-
                                                         value="encerrar"
-
                                                     >
 
                                                     <button
-
                                                         type="submit"
-
                                                         class="btn-action-sm btn-close"
-
-                                                        title="Encerrar chamado"
-
                                                     >
 
                                                         <span class="material-symbols-rounded">
-
                                                             close
-
                                                         </span>
 
                                                         Encerrar
@@ -645,38 +529,24 @@ try {
 
                                 </tr>
 
-
                             <?php endforeach; ?>
-
 
                         <?php else: ?>
 
                             <tr>
 
-                                <td
-
-                                    colspan="9"
-
-                                    class="empty-state"
-
-                                >
+                                <td colspan="9" class="empty-state">
 
                                     <span class="material-symbols-rounded">
-
                                         inbox
-
                                     </span>
 
                                     <strong>
-
                                         Nenhum chamado encontrado
-
                                     </strong>
 
                                     <span>
-
                                         Os chamados recebidos aparecerão aqui.
-
                                     </span>
 
                                 </td>
