@@ -1,329 +1,365 @@
-
 <?php
-use App\Config\Conexao;
 
 require_once '../app/Config/Conexao.php';
 
-$pdo = Conexao::getConexao();
+$pdo = \App\Config\Conexao::getConexao();
 
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    && isset($_POST['chamado_id'], $_POST['acao'])
-) {
-    $chamadoId = (int) $_POST['chamado_id'];
-    $acao = $_POST['acao'];
+/*
+|--------------------------------------------------------------------------
+| AÇÕES DOS CHAMADOS
+|--------------------------------------------------------------------------
+*/
 
-    $acoes = [
-        'aceitar'  => 'Em Andamento',
-        'resolver' => 'Resolvido',
-        'encerrar' => 'Fechado'
-    ];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if ($chamadoId > 0 && isset($acoes[$acao])) {
-        $stmt = $pdo->prepare(
-            "UPDATE chamados SET status = ? WHERE id = ?"
-        );
+    $id = $_POST['id'] ?? null;
+    $acao = $_POST['acao'] ?? null;
 
-        $stmt->execute([$acoes[$acao], $chamadoId]);
+    if ($id && $acao) {
+
+        if ($acao === 'aceitar') {
+            $sql = "UPDATE chamados 
+                    SET status = 'Em Andamento' 
+                    WHERE id = ?";
+        }
+
+        elseif ($acao === 'resolver') {
+            $sql = "UPDATE chamados 
+                    SET status = 'Resolvido' 
+                    WHERE id = ?";
+        }
+
+        elseif ($acao === 'encerrar') {
+            $sql = "UPDATE chamados 
+                    SET status = 'Fechado' 
+                    WHERE id = ?";
+        }
+
+        if (isset($sql)) {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$id]);
+        }
     }
-
-    echo '<script>window.location.replace("chamados.php");</script>';
-    exit;
 }
 
-$chamados = [];
-$erro = false;
+/*
+|--------------------------------------------------------------------------
+| BUSCAR CHAMADOS
+|--------------------------------------------------------------------------
+*/
 
-try {
-    $stmt = $pdo->query("
-        SELECT
+$sql = "SELECT
             id,
-            nome AS solicitante,
+            nome,
+            matricula,
+            setor,
             categoria,
             descricao,
             prioridade,
-            status
+            status,
+            cpf,
+            criado_em,
+            solicitante,
+            email
         FROM chamados
-        ORDER BY id DESC
-    ");
+        ORDER BY criado_em DESC";
 
-    $chamados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $pdo->query($sql);
+$chamados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-} catch (PDOException $e) {
-    error_log($e->getMessage());
-    $erro = true;
-}
 ?>
+
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Gerenciar Chamados - Sistema de Chamados</title>
+    <title>Chamados</title>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
+    <style>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
-        rel="stylesheet"
-    >
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 30px;
+        }
 
-    <link rel="stylesheet" href="css/painel.css">
+        h1 {
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #222;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .acoes {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .aceitar {
+            background: #007bff;
+        }
+
+        .resolver {
+            background: #28a745;
+        }
+
+        .encerrar {
+            background: #dc3545;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+    </style>
+
 </head>
+
 <body>
 
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <span class="material-symbols-rounded">headset_mic</span>
-            Suporte Técnico
-        </div>
+    <h1>Chamados</h1>
 
-        <a href="painel.php">
-            <span class="material-symbols-rounded">home</span>
-            Painel
-        </a>
+    <?php if (empty($chamados)): ?>
 
-        <a href="chamados.php" class="active">
-            <span class="material-symbols-rounded">confirmation_number</span>
-            Chamados
-        </a>
+        <p>Nenhum chamado encontrado.</p>
 
-        <a href="clientes.php">
-            <span class="material-symbols-rounded">person</span>
-            Clientes
-        </a>
+    <?php else: ?>
 
-        <a href="relatorios.php">
-            <span class="material-symbols-rounded">bar_chart</span>
-            Relatórios
-        </a>
+        <table>
 
-        <a href="configuracoes.php">
-            <span class="material-symbols-rounded">settings</span>
-            Configurações
-        </a>
+            <thead>
 
-        <a href="logout.php">
-            <span class="material-symbols-rounded">logout</span>
-            Sair
-        </a>
-    </aside>
+                <tr>
 
-    <main class="main-content">
-        <header class="top-header">
-            <h1>Gerenciamento de Chamados</h1>
-        </header>
+                    <th>ID</th>
 
-        <div class="table-container">
-            <div class="table-header">
-                <h3>Todos os Chamados (<?= count($chamados) ?>)</h3>
-            </div>
+                    <th>Solicitante</th>
 
-            <?php if ($erro): ?>
-                <p style="color:red; padding:20px;">
-                    Erro ao consultar os chamados.
-                    Verifique a conexão com o banco de dados.
-                </p>
-            <?php else: ?>
+                    <th>Matrícula</th>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Solicitante</th>
-                            <th>Assunto</th>
-                            <th>Status</th>
-                            <th>Data</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
+                    <th>Setor</th>
 
-                    <tbody>
-                        <?php if (!empty($chamados)): ?>
+                    <th>Categoria</th>
 
-                            <?php foreach ($chamados as $chamado): ?>
-                                <?php
-                                    $status = trim($chamado['status'] ?? '');
-                                    $statusNormalizado = mb_strtolower($status);
+                    <th>Descrição</th>
 
-                                    $statusClass = 'abertos';
+                    <th>Prioridade</th>
 
-                                    if (str_contains($statusNormalizado, 'andamento')) {
-                                        $statusClass = 'andamento';
-                                    } elseif (str_contains($statusNormalizado, 'aguardando')) {
-                                        $statusClass = 'aguardando';
-                                    } elseif (str_contains($statusNormalizado, 'resolvido')) {
-                                        $statusClass = 'resolvido';
-                                    } elseif (str_contains($statusNormalizado, 'fechado')) {
-                                        $statusClass = 'resolvido';
-                                    }
+                    <th>Status</th>
 
-                                    $categoria = $chamado['categoria'] ?? '';
-                                    $descricao = $chamado['descricao'] ?? '';
-                                ?>
+                    <th>Data do Chamado</th>
 
-                                <tr>
-                                    <td>
-                                        #<?= htmlspecialchars(
-                                            (string) $chamado['id'],
-                                            ENT_QUOTES,
-                                            'UTF-8'
-                                        ) ?>
-                                    </td>
+                    <th>Ações</th>
 
-                                    <td>
-                                        <?= htmlspecialchars(
-                                            $chamado['solicitante'] ?? '',
-                                            ENT_QUOTES,
-                                            'UTF-8'
-                                        ) ?>
-                                    </td>
+                </tr>
 
-                                    <td>
-                                        <strong>
-                                            <?= htmlspecialchars(
-                                                $categoria,
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </strong>
-                                        <br>
-                                        <small>
-                                            <?= htmlspecialchars(
-                                                $descricao,
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </small>
-                                    </td>
+            </thead>
 
-                                    <td>
-                                        <span class="badge <?= $statusClass ?>">
-                                            <?= htmlspecialchars(
-                                                $status,
-                                                ENT_QUOTES,
-                                                'UTF-8'
-                                            ) ?>
-                                        </span>
-                                    </td>
+            <tbody>
 
-                                    <td>—</td>
+                <?php foreach ($chamados as $chamado): ?>
 
-                                    <td>
-                                        <div class="action-buttons">
+                    <tr>
 
-                                            <?php if (
-                                                in_array(
-                                                    $statusNormalizado,
-                                                    ['aberto', 'aguardando'],
-                                                    true
-                                                )
-                                            ): ?>
-                                                <form method="POST" style="display:inline;">
-                                                    <input
-                                                        type="hidden"
-                                                        name="chamado_id"
-                                                        value="<?= (int) $chamado['id'] ?>"
-                                                    >
-                                                    <input
-                                                        type="hidden"
-                                                        name="acao"
-                                                        value="aceitar"
-                                                    >
+                        <td>
+                            <?= htmlspecialchars($chamado['id']) ?>
+                        </td>
 
-                                                    <button
-                                                        type="submit"
-                                                        class="btn-action-sm btn-accept"
-                                                    >
-                                                        <span
-                                                            class="material-symbols-rounded"
-                                                            style="font-size:16px;"
-                                                        >play_arrow</span>
-                                                        Aceitar
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
+                        <td>
+                            <?= htmlspecialchars(
+                                $chamado['solicitante'] ?: $chamado['nome']
+                            ) ?>
+                        </td>
 
-                                            <?php if (
-                                                !in_array(
-                                                    $statusNormalizado,
-                                                    ['resolvido', 'fechado'],
-                                                    true
-                                                )
-                                            ): ?>
-                                                <form method="POST" style="display:inline;">
-                                                    <input
-                                                        type="hidden"
-                                                        name="chamado_id"
-                                                        value="<?= (int) $chamado['id'] ?>"
-                                                    >
-                                                    <input
-                                                        type="hidden"
-                                                        name="acao"
-                                                        value="resolver"
-                                                    >
+                        <td>
+                            <?= htmlspecialchars($chamado['matricula']) ?>
+                        </td>
 
-                                                    <button
-                                                        type="submit"
-                                                        class="btn-action-sm btn-resolve"
-                                                    >
-                                                        <span
-                                                            class="material-symbols-rounded"
-                                                            style="font-size:16px;"
-                                                        >check</span>
-                                                        Resolver
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
+                        <td>
+                            <?= htmlspecialchars($chamado['setor']) ?>
+                        </td>
 
-                                            <?php if ($statusNormalizado !== 'fechado'): ?>
-                                                <form method="POST" style="display:inline;">
-                                                    <input
-                                                        type="hidden"
-                                                        name="chamado_id"
-                                                        value="<?= (int) $chamado['id'] ?>"
-                                                    >
-                                                    <input
-                                                        type="hidden"
-                                                        name="acao"
-                                                        value="encerrar"
-                                                    >
+                        <td>
+                            <?= htmlspecialchars($chamado['categoria']) ?>
+                        </td>
 
-                                                    <button
-                                                        type="submit"
-                                                        class="btn-action-sm btn-close"
-                                                    >
-                                                        <span
-                                                            class="material-symbols-rounded"
-                                                            style="font-size:16px;"
-                                                        >archive</span>
-                                                        Baixar
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
+                        <td>
+                            <?= htmlspecialchars($chamado['descricao']) ?>
+                        </td>
 
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                        <td>
+                            <?= htmlspecialchars($chamado['prioridade']) ?>
+                        </td>
 
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="6" style="text-align:center; padding:20px;">
-                                    Nenhum chamado encontrado.
-                                </td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                        <td class="status">
+                            <?= htmlspecialchars($chamado['status']) ?>
+                        </td>
 
-            <?php endif; ?>
-        </div>
-    </main>
+                        <td>
+
+                            <?php
+
+                            if (!empty($chamado['criado_em'])) {
+
+                                echo date(
+                                    'd/m/Y H:i',
+                                    strtotime($chamado['criado_em'])
+                                );
+
+                            } else {
+
+                                echo 'Não informado';
+
+                            }
+
+                            ?>
+
+                        </td>
+
+                        <td>
+
+                            <div class="acoes">
+
+                                <?php if ($chamado['status'] === 'Aberto'): ?>
+
+                                    <form method="POST">
+
+                                        <input
+                                            type="hidden"
+                                            name="id"
+                                            value="<?= $chamado['id'] ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="acao"
+                                            value="aceitar"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="aceitar"
+                                        >
+                                            Aceitar
+                                        </button>
+
+                                    </form>
+
+                                <?php endif; ?>
+
+
+                                <?php if (
+                                    $chamado['status'] === 'Em Andamento'
+                                ): ?>
+
+                                    <form method="POST">
+
+                                        <input
+                                            type="hidden"
+                                            name="id"
+                                            value="<?= $chamado['id'] ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="acao"
+                                            value="resolver"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="resolver"
+                                        >
+                                            Resolver
+                                        </button>
+
+                                    </form>
+
+                                <?php endif; ?>
+
+
+                                <?php if (
+                                    $chamado['status'] === 'Resolvido'
+                                ): ?>
+
+                                    <form method="POST">
+
+                                        <input
+                                            type="hidden"
+                                            name="id"
+                                            value="<?= $chamado['id'] ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="acao"
+                                            value="encerrar"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="encerrar"
+                                        >
+                                            Encerrar
+                                        </button>
+
+                                    </form>
+
+                                <?php endif; ?>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                <?php endforeach; ?>
+
+            </tbody>
+
+        </table>
+
+    <?php endif; ?>
 
 </body>
+
 </html>
