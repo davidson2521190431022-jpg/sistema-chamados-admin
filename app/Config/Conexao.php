@@ -22,7 +22,7 @@ class Conexao
 
                 
                 if ($pass === false) {
-                    $pass = '@Alex300378';
+                    $pass = '';
                 }
 
                 $dsn = "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4";
