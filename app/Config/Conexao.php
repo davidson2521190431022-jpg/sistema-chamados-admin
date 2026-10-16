@@ -12,17 +12,16 @@ class Conexao
     {
         if (self::$instancia === null) {
             try {
-
-               
+                // Captura as variáveis de ambiente do Railway ou usa os valores padrão locais
                 $host = getenv('MYSQLHOST') ?: 'localhost';
                 $port = getenv('MYSQLPORT') ?: '3306';
                 $db   = getenv('MYSQLDATABASE') ?: 'sistema_chamados';
                 $user = getenv('MYSQLUSER') ?: 'root';
                 $pass = getenv('MYSQLPASSWORD');
 
-                
+                // Define a senha padrão local caso a variável de ambiente não exista
                 if ($pass === false) {
-                    $pass = '';
+                    $pass = '123';
                 }
 
                 $dsn = "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4";
