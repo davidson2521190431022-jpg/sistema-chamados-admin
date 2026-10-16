@@ -4,7 +4,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Config\Conexao;
 use App\Helpers\Auth;
-
 Auth::proteger();
 
 $pdo = Conexao::getConexao();
