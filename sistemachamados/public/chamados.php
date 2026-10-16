@@ -1,9 +1,9 @@
 <?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
 use App\Config\Conexao;
 use App\Helpers\Auth;
-
-require_once __DIR__ . '/../app/Config/Conexao.php';
-require_once __DIR__ . '/../app/Helpers/Auth.php';
 
 Auth::proteger();
 
