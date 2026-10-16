@@ -2,11 +2,15 @@
 <?php
 use App\Config\Conexao;
 
+ob_start();
+
 require_once __DIR__ . '/../app/Config/Conexao.php';
+
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
 
 if (!empty($_SESSION['usuario_id'])) {
     header('Location: painel.php');
@@ -14,13 +18,16 @@ if (!empty($_SESSION['usuario_id'])) {
 }
 
 $erro = '';
+$emailDigitado = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
+    $emailDigitado = trim($_POST['email'] ?? '');
     $senha = $_POST['senha'] ?? '';
 
-    if ($email === '' || $senha === '') {
+    if ($emailDigitado === '' || $senha === '') {
         $erro = 'Preencha todos os campos para prosseguir.';
+    } elseif (!filter_var($emailDigitado, FILTER_VALIDATE_EMAIL)) {
+        $erro = 'Digite um endereço de e-mail válido.';
     } else {
         try {
             $pdo = Conexao::getConexao();
@@ -32,25 +39,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  LIMIT 1'
             );
 
-            $stmt->execute([':email' => $email]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->execute([
+                ':email' => $emailDigitado
+            ]);
 
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
             $senhaValida = false;
 
-            if ($usuario) {
-                $senhaArmazenada = $usuario['senha'];
+            if ($usuario && isset($usuario['senha'])) {
+                $senhaArmazenada = (string) $usuario['senha'];
 
                 if (password_verify($senha, $senhaArmazenada)) {
                     $senhaValida = true;
-                } elseif (
+                }
+
+                elseif (
                     strlen($senhaArmazenada) < 30 &&
                     hash_equals($senhaArmazenada, $senha)
                 ) {
-                    
                     $senhaValida = true;
 
-    
-                    $novoHash = password_hash($senha, PASSWORD_DEFAULT);
+                    $novoHash = password_hash(
+                        $senha,
+                        PASSWORD_DEFAULT
+                    );
 
                     $update = $pdo->prepare(
                         'UPDATE usuarios
@@ -65,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            if ($senhaValida) {
+            if ($usuario && $senhaValida) {
                 session_regenerate_id(true);
 
                 $_SESSION['usuario_id'] = $usuario['id_usuario'];
@@ -77,9 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $erro = 'E-mail ou senha inválidos.';
-        } catch (PDOException $e) {
-            error_log('Erro ao autenticar usuário: ' . $e->getMessage());
-            $erro = 'Não foi possível realizar o login. Tente novamente.';
+
+        } catch (Throwable $e) {
+            error_log(
+                'Erro ao autenticar usuário: ' . $e->getMessage()
+            );
+
+            $erro = 'Não foi possível realizar o login. Verifique a configuração do sistema e tente novamente.';
         }
     }
 }
@@ -89,32 +105,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Login - Suporte Técnico</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/login.css?v=3.2">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="css/login.css?v=3.3">
 </head>
 <body>
+
     <div class="login-card">
+
         <div class="login-header">
             <h2>Suporte Técnico</h2>
             <p>Faça login para acessar o sistema</p>
         </div>
 
         <?php if ($erro !== ''): ?>
-            <div class="alert-error">
-                <?php echo htmlspecialchars($erro, ENT_QUOTES, 'UTF-8'); ?>
+            <div class="alert-error" role="alert">
+                <?= htmlspecialchars(
+                    $erro,
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST">
+        <form method="POST" action="login.php">
+
             <div class="form-group">
                 <label for="email">E-mail</label>
+
                 <input
                     type="email"
                     id="email"
                     name="email"
                     class="form-control"
                     placeholder="seu@email.com"
+                    value="<?= htmlspecialchars(
+                        $emailDigitado,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
                     autocomplete="username"
                     required
                 >
@@ -122,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="form-group">
                 <label for="senha">Senha</label>
+
                 <input
                     type="password"
                     id="senha"
@@ -133,14 +169,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 >
             </div>
 
-            <button type="submit" class="btn-submit">Entrar no Sistema</button>
+            <button type="submit" class="btn-submit">
+                Entrar no Sistema
+            </button>
+
         </form>
 
         <div class="card-footer-link">
-            <a href="esqueci_senha.php" class="forgot-password-link">
+            <a
+                href="esqueci_senha.php"
+                class="forgot-password-link"
+            >
                 Esqueci minha senha.
             </a>
         </div>
+
     </div>
+
 </body>
 </html>
+```
