@@ -1,0 +1,6 @@
+{
+    "name": "projeto/sistema-chamados-admin",
+    "require": {
+        "php": ">=8.2"
+    }
+}

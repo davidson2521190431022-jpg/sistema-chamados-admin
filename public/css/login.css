@@ -1,0 +1,129 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+    background: linear-gradient(rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.65)), 
+                url('../img/tecnico.png') no-repeat center center fixed;
+    background-size: cover;
+}
+
+.login-card {
+    background: #ffffff !important;
+    width: 100%;
+    max-width: 800px;
+    padding: 15px 40px;
+    border-radius: 12px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+    margin: 20px;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-header h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.login-header p {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #334155;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none;
+    color: #0f172a;
+    background-color: #f8fafc;
+    transition: all 0.2s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 14px;
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background-color 0.2s;
+}
+
+.btn-submit:hover {
+    background-color: #1d4ed8;
+}
+
+.alert-error {
+    background-color: #fef2f2;
+    color: #dc2626;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    text-align: center;
+}
+.card-footer-link {
+    text-align: center;
+    margin-top: 18px;
+}
+
+.forgot-password-link {
+    color: #2563eb;
+    font-size: 0.85rem;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.forgot-password-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.alert-success {
+    background-color: #dcfce7;
+    color: #16a34a;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    text-align: center;
+}
