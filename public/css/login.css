@@ -1,3 +1,4 @@
+```css
 * {
     margin: 0;
     padding: 0;
@@ -9,22 +10,30 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 40px;
-    background: linear-gradient(rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.65)), 
-                url('../img/tecnico.png') no-repeat center center fixed;
+    align-items: center;
+    padding: 30px 15px;
+
+    background:
+        linear-gradient(
+            rgba(15, 23, 42, 0.65),
+            rgba(15, 23, 42, 0.65)
+        ),
+        url('../img/tecnico.png') no-repeat center center fixed;
+
     background-size: cover;
 }
 
+
 .login-card {
-    background: #ffffff !important;
+    background-color: #ffffff;
     width: 100%;
     max-width: 800px;
-    padding: 15px 40px;
+    padding: 30px 40px;
     border-radius: 12px;
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
-    margin: 20px;
+    margin: auto;
 }
+
 
 .login-header {
     text-align: center;
@@ -43,6 +52,7 @@ body {
     color: #64748b;
 }
 
+
 .form-group {
     margin-bottom: 18px;
 }
@@ -56,6 +66,7 @@ body {
 }
 
 .form-control {
+    display: block;
     width: 100%;
     padding: 12px 14px;
     font-size: 0.95rem;
@@ -73,7 +84,9 @@ body {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+/* Botão */
 .btn-submit {
+    display: block;
     width: 100%;
     padding: 14px;
     background-color: #2563eb;
@@ -84,13 +97,14 @@ body {
     font-weight: 600;
     cursor: pointer;
     margin-top: 8px;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s ease;
 }
 
 .btn-submit:hover {
     background-color: #1d4ed8;
 }
 
+/* Mensagem de erro */
 .alert-error {
     background-color: #fef2f2;
     color: #dc2626;
@@ -100,6 +114,19 @@ body {
     margin-bottom: 16px;
     text-align: center;
 }
+
+/* Mensagem de sucesso */
+.alert-success {
+    background-color: #dcfce7;
+    color: #16a34a;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+/* Links abaixo do formulário */
 .card-footer-link {
     text-align: center;
     margin-top: 18px;
@@ -118,12 +145,24 @@ body {
     text-decoration: underline;
 }
 
-.alert-success {
-    background-color: #dcfce7;
-    color: #16a34a;
-    padding: 10px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    margin-bottom: 16px;
-    text-align: center;
+/* Ajustes para celulares */
+@media (max-width: 600px) {
+    body {
+        padding: 20px 12px;
+        background-attachment: scroll;
+    }
+
+    .login-card {
+        padding: 25px 20px;
+        margin: auto;
+    }
+
+    .login-header h2 {
+        font-size: 1.4rem;
+    }
+
+    .form-control {
+        font-size: 16px;
+    }
 }
+```
