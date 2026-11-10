@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Config;
@@ -12,16 +13,14 @@ class Conexao
     {
         if (self::$instancia === null) {
             try {
-                // Captura as variáveis de ambiente do Railway ou usa os valores padrão locais
                 $host = getenv('MYSQLHOST') ?: 'localhost';
                 $port = getenv('MYSQLPORT') ?: '3306';
-                $db   = getenv('MYSQLDATABASE') ?: 'sistema_chamados';
+                $db   = getenv('DB_DATABASE') ?: 'sistema_chamados';
                 $user = getenv('MYSQLUSER') ?: 'root';
                 $pass = getenv('MYSQLPASSWORD');
 
-                // Define a senha padrão local caso a variável de ambiente não exista
                 if ($pass === false) {
-                    $pass = '123';
+                    $pass = '';
                 }
 
                 $dsn = "mysql:host={$host};port={$port};dbname={$db};charset=utf8mb4";
@@ -40,10 +39,8 @@ class Conexao
                 );
 
             } catch (\PDOException $e) {
-                throw new \PDOException(
-                    $e->getMessage(),
-                    (int) $e->getCode()
-                );
+                error_log("Erro na conexão com o banco: " . $e->getMessage());
+                throw new \RuntimeException("Não foi possível conectar ao banco de dados.");
             }
         }
 
