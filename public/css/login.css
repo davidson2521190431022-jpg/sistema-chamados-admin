@@ -127,3 +127,38 @@ body {
     margin-bottom: 16px;
     text-align: center;
 }
+
+/* --- ALINHAMENTO PROFISSIONAL DO OLHO DA SENHA --- */
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-wrapper .form-control {
+    width: 100%;
+    padding-right: 45px; /* Espaço extra para o texto não sobrepor o ícone */
+}
+
+.btn-eye {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-eye:focus {
+    outline: none;
+}
+
+.btn-eye:hover svg {
+    stroke: #333;
+}
