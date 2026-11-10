@@ -5,7 +5,7 @@ class Auth
 {
     public static function iniciar()
     {
-        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
     }
