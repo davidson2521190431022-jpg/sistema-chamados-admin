@@ -1,6 +1,5 @@
 
 <?php
-
 namespace App\Config;
 
 use PDO;
@@ -15,7 +14,7 @@ class Conexao
             try {
                 $host = getenv('MYSQLHOST') ?: 'localhost';
                 $port = getenv('MYSQLPORT') ?: '3306';
-                $db   = getenv('DB_DATABASE') ?: 'sistema_chamados';
+                $db = getenv('DB_DATABASE') ?: 'sistema_chamados';
                 $user = getenv('MYSQLUSER') ?: 'root';
                 $pass = getenv('MYSQLPASSWORD');
 
