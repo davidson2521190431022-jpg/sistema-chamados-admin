@@ -4,7 +4,7 @@ use App\Helpers\Auth;
 
 require_once '../app/Config/Conexao.php';
 require_once '../app/Helpers/Auth.php';
-
+ 
 Auth::iniciar();
 
 $erro = '';
@@ -84,24 +84,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        placeholder="seu@email.com" required>
             </div>
 
-            <div class="form-group">
+           
+            <div class="form-group" style="position: relative;">
                 <label for="senha">Senha</label>
                 <input type="password" id="senha" name="senha"
                        class="form-control"
                        placeholder="••••••••" required>
+                
+                <button type="button" id="togglePassword" class="btn-eye" aria-label="Mostrar senha">
+                    <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </button>
             </div>
 
             <button type="submit" class="btn-submit">
                 Entrar no Sistema
             </button>
         </form>
-
         <div class="card-footer-link">
             <a href="esqueci_senha.php" class="forgot-password-link">
                 Esqueci minha senha.
             </a>
         </div>
     </div>
+    <script>
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#senha');
+        const eyeIcon = document.querySelector('#eyeIcon');
 
+        togglePassword.addEventListener('click', function () {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            
+            if (type === 'text') {
+                eyeIcon.setAttribute('stroke', '#3b82f6'); 
+            } else {
+                eyeIcon.setAttribute('stroke', '#666'); 
+            }
+        });
+    </script>
 </body>
 </html>
