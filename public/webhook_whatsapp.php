@@ -50,26 +50,10 @@ try {
 
     /*
      * 2. Se o cliente ainda não existir,
-     *    cadastra um novo cliente
+     *    cadastra um novo cliente.
+     *    CPF e e-mail são opcionais.
      */
     if (!$cliente) {
-
-        /*
-         * CPF e e-mail são obrigatórios no banco.
-         * Caso a integração ainda não envie esses dados,
-         * o cadastro não poderá ser criado corretamente.
-         */
-        if (empty($cpf) || empty($email)) {
-
-            http_response_code(400);
-
-            echo json_encode([
-                'sucesso' => false,
-                'mensagem' => 'Cliente novo precisa informar CPF e e-mail para o cadastro.'
-            ]);
-
-            exit;
-        }
 
         Cliente::criar([
             'nome' => $nome,
@@ -82,6 +66,10 @@ try {
          * Busca novamente para obter o id_cliente
          */
         $cliente = Cliente::porTelefone($telefone);
+
+        if (!$cliente) {
+            throw new Exception('Não foi possível localizar o cliente após o cadastro.');
+        }
     }
 
     /*
@@ -113,8 +101,11 @@ try {
 
 } catch (\Throwable $e) {
     http_response_code(500);
+
+    error_log('Erro no webhook do site: ' . $e->getMessage());
+
     echo json_encode([
         'sucesso' => false,
-        'mensagem' => $e->getMessage()
+        'mensagem' => 'Erro interno ao processar o atendimento.'
     ]);
 }
