@@ -515,8 +515,9 @@ function linkPagina(
                                 $nome = $chamado['nome_cliente']
                                     ?? 'Cliente não informado';
 
-                                $email = $chamado['email_cliente']
-                                    ?? '—';
+                                $email = !empty($chamado['email_cliente'])
+                                     ? $chamado['email_cliente']
+                                     : 'Não informado';
 
                                 $assunto = $chamado['assunto']
                                     ?? '—';
