@@ -52,6 +52,10 @@ class Cliente
 
     public static function porEmail($email)
     {
+        if (empty($email)) {
+            return false;
+        }
+
         $pdo = Conexao::getConexao();
 
         $stmt = $pdo->prepare("
@@ -69,6 +73,12 @@ class Cliente
     {
         $pdo = Conexao::getConexao();
 
+        $cpf = trim($dados['cpf'] ?? '');
+        $email = trim($dados['email'] ?? '');
+
+        $cpf = $cpf !== '' ? $cpf : null;
+        $email = $email !== '' ? $email : null;
+
         $stmt = $pdo->prepare("
             INSERT INTO clientes
                 (nome, cpf, email, telefone, data_cadastro)
@@ -78,9 +88,9 @@ class Cliente
 
         return $stmt->execute([
             $dados['nome'],
-            $dados['cpf'],
-            $dados['email'],
-            $dados['telefone']
+            $cpf,
+            $email,
+            $dados['telefone'] ?? null
         ]);
     }
 }
