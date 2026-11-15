@@ -1,9 +1,12 @@
+
 <?php
 use App\Config\Conexao;
 use App\Helpers\Auth;
+use App\Services\WhatsAppService;
 
 require_once __DIR__ . '/../app/Config/Conexao.php';
 require_once __DIR__ . '/../app/Helpers/Auth.php';
+require_once __DIR__ . '/../app/Services/WhatsAppService.php';
 
 Auth::proteger();
 
@@ -28,6 +31,25 @@ if (
         );
 
         $stmt->execute([$acoes[$acao], $chamadoId]);
+
+        // Notifica apenas quando um chamado existente teve seu status alterado.
+        if ($stmt->rowCount() > 0) {
+            try {
+                $resultadoNotificacao = WhatsAppService::notificarStatus(
+                    $chamadoId,
+                    $acoes[$acao]
+                );
+
+                if (empty($resultadoNotificacao['sucesso'])) {
+                    error_log(
+                        'SCT WhatsApp: ' .
+                        ($resultadoNotificacao['mensagem'] ?? 'Falha ao solicitar notificacao.')
+                    );
+                }
+            } catch (Throwable $e) {
+                error_log('SCT WhatsApp: ' . $e->getMessage());
+            }
+        }
     }
 
     echo '<script>window.location.replace("chamados.php");</script>';
