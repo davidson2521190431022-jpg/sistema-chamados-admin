@@ -26,20 +26,19 @@ $totalPaginas = 1;
 
 try {
 
-    /*
-     * Conta os chamados.
-     * A busca é feita pelo nome do cliente.
-     */
-    $where = '';$parametros = [];
 
-    if ($busca !== '') {$where = ' WHERE cl.nome LIKE :busca ';
-        $parametros[':busca'] = '\%' .$busca . '%';
+    $where = '';
+    $parametros = [];
+
+    if ($busca !== '') {
+
+        $where = ' WHERE cl.nome LIKE :busca ';
+
+        $parametros[':busca'] = '%' . $busca . '%';
     }
 
-    /*
-     * Total de chamados encontrados.
-     */
-    $stmt =$pdo->prepare("
+
+    $stmt = $pdo->prepare("
         SELECT COUNT(*)
         FROM chamados c
         LEFT JOIN clientes cl
@@ -47,31 +46,31 @@ try {
         $where
     ");
 
-    foreach ($parametros as$param => $valor) {$stmt->bindValue(
-            $param,$valor,
+    foreach ($parametros as $param => $valor) {
+        $stmt->bindValue(
+            $param,
+            $valor,
             PDO::PARAM_STR
         );
     }
 
     $stmt->execute();
 
-    $totalChamados = (int)$stmt->fetchColumn();
+    $totalChamados = (int) $stmt->fetchColumn();
 
     $totalPaginas = max(
         1,
         (int) ceil($totalChamados / $porPagina)
     );
 
-    if ($paginaAtual >$totalPaginas) {
-        $paginaAtual =$totalPaginas;
+    if ($paginaAtual > $totalPaginas) {
+        $paginaAtual = $totalPaginas;
     }
 
-    $offset = ($paginaAtual - 1) *$porPagina;
+    $offset = ($paginaAtual - 1) * $porPagina;
 
-    /*
-     * Busca os chamados.
-     */
-    $stmt =$pdo->prepare("
+    
+    $stmt = $pdo->prepare("
         SELECT
             c.id_chamado,
             cl.nome AS nome_cliente,
@@ -91,8 +90,10 @@ try {
         LIMIT :limite OFFSET :offset
     ");
 
-    foreach ($parametros as$param => $valor) {$stmt->bindValue(
-            $param,$valor,
+    foreach ($parametros as $param => $valor) {
+        $stmt->bindValue(
+            $param,
+            $valor,
             PDO::PARAM_STR
         );
     }
@@ -111,9 +112,10 @@ try {
 
     $stmt->execute();
 
-    $chamadosClientes =$stmt->fetchAll(PDO::FETCH_ASSOC);
+    $chamadosClientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
+
     error_log(
         'Erro no histórico: ' . $e->getMessage()
     );
@@ -122,35 +124,36 @@ try {
 }
 
 
-/*
- * Paginação com até cinco números.
- */
+
 $janela = 5;
 
-$inicio = max( 1,$paginaAtual - 2
+$inicio = max(
+    1,
+    $paginaAtual - 2
 );
 
-$fim = min($totalPaginas,
-    $inicio +$janela - 1
+$fim = min(
+    $totalPaginas,
+    $inicio + $janela - 1
 );
 
 $inicio = max(
     1,
-    $fim -$janela + 1
+    $fim - $janela + 1
 );
 
 
-/*
- * Mantém a pesquisa nos links da paginação.
- */
+
 function linkPagina(
     int $pagina,
     string $busca
 ): string {
+
     return '?' . http_build_query([
         'pagina' => $pagina,
         'busca' => $busca
     ]);
+
 }
 
 ?>
@@ -487,24 +490,25 @@ function linkPagina(
                         <?php if (!empty($chamadosClientes)): ?>
 
 
-                            <?php foreach ($chamadosClientes as$chamado): ?>
+                            <?php foreach ($chamadosClientes as $chamado): ?>
 
 
                                 <?php
 
-                                $id = (int) ($chamado['id_chamado'] ?? 0
+                                $id = (int) (
+                                    $chamado['id_chamado'] ?? 0
                                 );
 
-                                $nome =$chamado['nome_cliente']
+                                $nome = $chamado['nome_cliente']
                                     ?? 'Cliente não informado';
 
-                                $assunto =$chamado['assunto']
+                                $assunto = $chamado['assunto']
                                     ?? '—';
 
-                                $descricao =$chamado['descricao']
+                                $descricao = $chamado['descricao']
                                     ?? '';
 
-                                $status =$chamado['status']
+                                $status = $chamado['status']
                                     ?? '';
 
                                 $statusClass = 'abertos';
@@ -521,9 +525,11 @@ function linkPagina(
 
                                     $statusClass = 'aguardando';
 
-                              } elseif (
-                                   $status === 'resolvido' || $status === 'fechado'
-                                                    ) {
+                                } elseif (
+                                    $status === 'resolvido' ||
+                                    $status === 'fechado'
+                                ) {
+
                                     $statusClass = 'resolvido';
 
                                 }
@@ -552,7 +558,7 @@ function linkPagina(
                                         break;
 
                                     default:
-                                        $statusTexto =$status ?: '—';
+                                        $statusTexto = $status ?: '—';
 
                                 }
 
@@ -565,7 +571,8 @@ function linkPagina(
                                     )
                                 ) {
 
-                                    $timestamp = strtotime($chamado['data_criacao']
+                                    $timestamp = strtotime(
+                                        $chamado['data_criacao']
                                     );
 
                                     if ($timestamp !== false) {
@@ -723,7 +730,8 @@ function linkPagina(
                             <a
                                 href="<?= htmlspecialchars(
                                     linkPagina(
-                                        $paginaAtual - 1,$busca
+                                        $paginaAtual - 1,
+                                        $busca
                                     ),
                                     ENT_QUOTES,
                                     'UTF-8'
@@ -765,13 +773,13 @@ function linkPagina(
 
 
                         <?php for (
-                            $i =$inicio;
-                            $i <=$fim;
+                            $i = $inicio;
+                            $i <= $fim;
                             $i++
                         ): ?>
 
 
-                            <?php if ($i ===$paginaAtual): ?>
+                            <?php if ($i === $paginaAtual): ?>
 
                                 <span class="ativa">
                                     <?= $i ?>
@@ -782,7 +790,8 @@ function linkPagina(
                                 <a
                                     href="<?= htmlspecialchars(
                                         linkPagina(
-                                            $i,$busca
+                                            $i,
+                                            $busca
                                         ),
                                         ENT_QUOTES,
                                         'UTF-8'
@@ -797,8 +806,89 @@ function linkPagina(
                         <?php endfor; ?>
 
 
-                        <?php if ($fim <$totalPaginas): ?>
+                        <?php if ($fim < $totalPaginas): ?>
 
 
                             <?php if (
-                                $fim <$totalPaginas
+                                $fim < $totalPaginas - 1
+                            ): ?>
+
+                                <span class="desativada">
+                                    ...
+                                </span>
+
+                            <?php endif; ?>
+
+
+                            <a
+                                href="<?= htmlspecialchars(
+                                    linkPagina(
+                                        $totalPaginas,
+                                        $busca
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>"
+                            >
+                                <?= $totalPaginas ?>
+                            </a>
+
+
+                        <?php endif; ?>
+
+
+                        <?php if (
+                            $paginaAtual < $totalPaginas
+                        ): ?>
+
+                            <a
+                                href="<?= htmlspecialchars(
+                                    linkPagina(
+                                        $paginaAtual + 1,
+                                        $busca
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>"
+                            >
+                                Próxima &raquo;
+                            </a>
+
+                        <?php else: ?>
+
+                            <span class="desativada">
+                                Próxima &raquo;
+                            </span>
+
+                        <?php endif; ?>
+
+
+                    </nav>
+
+
+                    <p class="info-paginacao">
+
+                        Página <?= $paginaAtual ?>
+                        de <?= $totalPaginas ?>
+
+                        &middot;
+
+                        <?= $porPagina ?>
+                        por página
+
+                    </p>
+
+
+                <?php endif; ?>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+    </main>
+
+</body>
+
+</html>
