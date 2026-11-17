@@ -521,10 +521,9 @@ function linkPagina(
 
                                     $statusClass = 'aguardando';
 
-                                } elseif (
-                                    $status === 'resolvido' \vert{}\vert{}$status === 'fechado'
-                                ) {
-
+                              } elseif (
+                                   $status === 'resolvido' || $status === 'fechado'
+                                                    ) {
                                     $statusClass = 'resolvido';
 
                                 }
